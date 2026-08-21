@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 export default function Login() {
@@ -32,6 +32,9 @@ export default function Login() {
           {cargando ? "Ingresando..." : "Ingresar"}
         </button>
       </form>
+      <Link to="/onboarding" style={{ display: "block", marginTop: 16, fontSize: 12, opacity: 0.6 }}>
+        Onboarding de nuevo cliente (interno JCS)
+      </Link>
     </div>
   );
 }

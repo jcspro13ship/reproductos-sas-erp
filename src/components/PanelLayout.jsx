@@ -9,7 +9,7 @@ export const MODULOS_PANEL = [
   { path: "/panel/clientes", label: "Clientes", modulo: "ventas" },
   { path: "/panel/proveedores", label: "Proveedores", modulo: "compras" },
   { path: "/panel/comisiones", label: "Comisiones", modulo: "comisiones" },
-  { path: "/panel/cartera", label: "Cartera (CxC / CxP)", modulo: "cartera" },
+  { path: "/panel/cartera", label: "Cartera (CxC / CxP)", modulo: ["cxc", "cxp"] },
   { path: "/panel/catalogo-precios", label: "Catálogo y precios", modulo: "catalogo" },
   { path: "/panel/costos", label: "Costos y rentabilidad", modulo: "costos" },
   { path: "/panel/configuracion", label: "Configuración", modulo: "configuracion" },
@@ -24,7 +24,9 @@ export default function PanelLayout() {
     navigate("/panel/login");
   }
 
-  const visibles = MODULOS_PANEL.filter((m) => hasAccess(m.modulo, "ver"));
+  const visibles = MODULOS_PANEL.filter((m) =>
+    Array.isArray(m.modulo) ? m.modulo.some((mod) => hasAccess(mod, "ver")) : hasAccess(m.modulo, "ver")
+  );
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>

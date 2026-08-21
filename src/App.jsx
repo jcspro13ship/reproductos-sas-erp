@@ -23,6 +23,7 @@ import Cartera from "./pages/panel/Cartera";
 import CatalogoPrecios from "./pages/panel/CatalogoPrecios";
 import Costos from "./pages/panel/Costos";
 import Configuracion from "./pages/panel/Configuracion";
+import Onboarding from "./pages/onboarding/Onboarding";
 
 export default function App() {
   return (
@@ -38,6 +39,7 @@ export default function App() {
             </Route>
 
             <Route path="/panel/login" element={<Login />} />
+            <Route path="/onboarding" element={<Onboarding />} />
             <Route
               path="/panel"
               element={

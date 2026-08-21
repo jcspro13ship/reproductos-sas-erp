@@ -72,6 +72,14 @@ th {
   font-weight: 600;
 }
 
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 input,
 select {
   padding: 8px 10px;
