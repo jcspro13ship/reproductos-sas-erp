@@ -9,6 +9,10 @@
 // POST { action: "create"|"update"|"delete", sheet, id, data }
 // POST { action: "login", data: { email } }
 // POST { action: "loginCliente", data: { usuario, clave } }
+// POST { action: "recibirCompra", data: { proveedor_id, fecha, estado, fecha_vencimiento,
+//        items: [{ producto_id, cantidad, costo_unitario }] } }
+// POST { action: "registrarVenta", data: { cliente_id, vendedor_id, fecha, estado,
+//        fecha_vencimiento, items: [{ producto_id, cantidad, precio_unitario }] } }
 
 function doGet(e) {
   try {
@@ -53,6 +57,12 @@ function doPost(e) {
     if (accion === 'loginCliente') {
       return responder(loginCliente(body.usuario, body.clave))
     }
+    if (accion === 'recibirCompra') {
+      return responder({ ok: true, data: recibirCompra(body.data || {}) })
+    }
+    if (accion === 'registrarVenta') {
+      return responder({ ok: true, data: registrarVenta(body.data || {}) })
+    }
     return responder({ ok: false, error: 'Acción POST no reconocida: ' + accion })
   } catch (err) {
     return responder({ ok: false, error: String(err) })
@@ -87,6 +97,141 @@ function loginCliente(usuario, clave) {
   if (!cliente) return { ok: false, error: 'Usuario o clave incorrectos' }
   delete cliente.clave
   return { ok: true, data: cliente }
+}
+
+// ---- Flujo de compras y ventas (ver ERP-configurable-estructura.md, secciones 4 y 5) ----
+
+function recibirCompra(datos) {
+  var lock = LockService.getScriptLock()
+  lock.waitLock(10000)
+  try {
+    var compra = crearFila('COMPRAS', {
+      proveedor_id: datos.proveedor_id,
+      fecha: datos.fecha,
+      estado: datos.estado || 'recibida',
+    })
+
+    var totalCompra = 0
+    var detalles = (datos.items || []).map(function (item) {
+      var detalle = crearFila('COMPRAS_DETALLE', {
+        compra_id: compra.id,
+        producto_id: item.producto_id,
+        cantidad: item.cantidad,
+        costo_unitario: item.costo_unitario,
+      })
+
+      var producto = buscarPorId('PRODUCTOS', item.producto_id)
+      if (!producto) throw new Error('Producto no encontrado: ' + item.producto_id)
+
+      var stockActual = Number(producto.stock_actual) || 0
+      var costoActual = Number(producto.costo_promedio) || 0
+      var cantidadComprada = Number(item.cantidad)
+      var costoCompra = Number(item.costo_unitario)
+      var nuevoStock = stockActual + cantidadComprada
+      // Costo promedio ponderado: nuevo_costo = (stock*costo + cant_comprada*costo_compra) / (stock+cant_comprada)
+      var nuevoCosto =
+        nuevoStock > 0 ? (stockActual * costoActual + cantidadComprada * costoCompra) / nuevoStock : costoCompra
+
+      actualizarFila('PRODUCTOS', producto.id, { stock_actual: nuevoStock, costo_promedio: nuevoCosto })
+
+      crearFila('MOVIMIENTOS_INVENTARIO', {
+        producto_id: producto.id,
+        tipo: 'entrada',
+        cantidad: cantidadComprada,
+        referencia_tipo: 'compra',
+        referencia_id: compra.id,
+        costo_unitario: costoCompra,
+        fecha: datos.fecha,
+      })
+
+      totalCompra += cantidadComprada * costoCompra
+      return detalle
+    })
+
+    var cxp = crearFila('CXP', {
+      proveedor_id: datos.proveedor_id,
+      compra_id: compra.id,
+      saldo: totalCompra,
+      fecha_vencimiento: datos.fecha_vencimiento || '',
+    })
+
+    return { compra: compra, detalles: detalles, cxp: cxp }
+  } finally {
+    lock.releaseLock()
+  }
+}
+
+function registrarVenta(datos) {
+  var lock = LockService.getScriptLock()
+  lock.waitLock(10000)
+  try {
+    var venta = crearFila('VENTAS', {
+      cliente_id: datos.cliente_id,
+      vendedor_id: datos.vendedor_id,
+      fecha: datos.fecha,
+      estado: datos.estado || 'cerrada',
+    })
+
+    var lineas = leerTodo('LINEAS')
+    var totalVenta = 0
+    var totalComision = 0
+    var detalles = (datos.items || []).map(function (item) {
+      var detalle = crearFila('VENTAS_DETALLE', {
+        venta_id: venta.id,
+        producto_id: item.producto_id,
+        cantidad: item.cantidad,
+        precio_unitario: item.precio_unitario,
+      })
+
+      var producto = buscarPorId('PRODUCTOS', item.producto_id)
+      if (!producto) throw new Error('Producto no encontrado: ' + item.producto_id)
+
+      var cantidadVendida = Number(item.cantidad)
+      var costoVigente = Number(producto.costo_promedio) || 0
+      // Se permite inventario negativo (backorder); no se bloquea la venta.
+      var nuevoStock = (Number(producto.stock_actual) || 0) - cantidadVendida
+      actualizarFila('PRODUCTOS', producto.id, { stock_actual: nuevoStock })
+
+      crearFila('MOVIMIENTOS_INVENTARIO', {
+        producto_id: producto.id,
+        tipo: 'salida',
+        cantidad: cantidadVendida,
+        referencia_tipo: 'venta',
+        referencia_id: venta.id,
+        costo_unitario: costoVigente,
+        fecha: datos.fecha,
+      })
+
+      var subtotal = cantidadVendida * Number(item.precio_unitario)
+      totalVenta += subtotal
+
+      var linea = lineas.find(function (l) {
+        return String(l.id) === String(producto.linea_id)
+      })
+      var pctComision = linea ? Number(linea.comision_default_pct) || 0 : 0
+      totalComision += subtotal * pctComision
+
+      return detalle
+    })
+
+    var comision = crearFila('COMISIONES', {
+      venta_id: venta.id,
+      vendedor_id: datos.vendedor_id,
+      valor_comision: totalComision,
+      estado_pago: 'pendiente',
+    })
+
+    var cxc = crearFila('CXC', {
+      cliente_id: datos.cliente_id,
+      venta_id: venta.id,
+      saldo: totalVenta,
+      fecha_vencimiento: datos.fecha_vencimiento || '',
+    })
+
+    return { venta: venta, detalles: detalles, comision: comision, cxc: cxc }
+  } finally {
+    lock.releaseLock()
+  }
 }
 
 // ---- Acceso genérico a las pestañas del Sheet ----

@@ -38,4 +38,6 @@ export const api = {
   remove: (sheet, id) => send("delete", sheet, { id }),
   login: (email) => send("login", "USUARIOS", { email }),
   loginCliente: (usuario, clave) => send("loginCliente", "CLIENTES", { usuario, clave }),
+  recibirCompra: (data) => send("recibirCompra", undefined, { data }),
+  registrarVenta: (data) => send("registrarVenta", undefined, { data }),
 };
