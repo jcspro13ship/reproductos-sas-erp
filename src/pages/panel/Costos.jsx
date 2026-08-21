@@ -1,19 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { calcularRentabilidadPorVenta, calcularValorInventario } from "../../lib/rentabilidad";
-
-function KpiCard({ etiqueta, valor }) {
-  return (
-    <div style={{ border: "1px solid var(--color-borde)", borderRadius: "var(--radio)", padding: 16, flex: 1 }}>
-      <div style={{ fontSize: 12, opacity: 0.7 }}>{etiqueta}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>{valor}</div>
-    </div>
-  );
-}
-
-function formatoMoneda(valor) {
-  return `$${Math.round(valor).toLocaleString("es-CO")}`;
-}
+import { formatoMoneda } from "../../lib/formato";
+import KpiCard from "../../components/KpiCard";
 
 export default function Costos() {
   const [datos, setDatos] = useState(null);

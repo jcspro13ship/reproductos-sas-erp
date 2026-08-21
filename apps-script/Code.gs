@@ -39,17 +39,23 @@ function doPost(e) {
     var accion = body.action
     var sheetName = body.sheet
 
-    if (accion === 'create') {
-      return responder({ ok: true, data: crearFila(sheetName, body.data || {}) })
-    }
-    if (accion === 'update') {
-      var actualizado = actualizarFila(sheetName, body.id, body.data || {})
-      if (!actualizado) return responder({ ok: false, error: 'No encontrado' })
-      return responder({ ok: true, data: actualizado })
-    }
-    if (accion === 'delete') {
-      var borrado = borrarFila(sheetName, body.id)
-      return responder({ ok: true, data: { borrado: borrado } })
+    if (accion === 'create' || accion === 'update' || accion === 'delete') {
+      var lock = LockService.getScriptLock()
+      lock.waitLock(10000)
+      try {
+        if (accion === 'create') {
+          return responder({ ok: true, data: crearFila(sheetName, body.data || {}) })
+        }
+        if (accion === 'update') {
+          var actualizado = actualizarFila(sheetName, body.id, body.data || {})
+          if (!actualizado) return responder({ ok: false, error: 'No encontrado' })
+          return responder({ ok: true, data: actualizado })
+        }
+        var borrado = borrarFila(sheetName, body.id)
+        return responder({ ok: true, data: { borrado: borrado } })
+      } finally {
+        lock.releaseLock()
+      }
     }
     if (accion === 'login') {
       return responder(login(body.email))
@@ -252,6 +258,10 @@ function buscarPorId(nombre, id) {
   })
 }
 
+// Sin candado propio: quien llama a crearFila/actualizarFila (el despachador de
+// doPost, o recibirCompra/registrarVenta) es responsable de tomar el candado antes
+// de invocarla. Así evitamos anidar LockService.getScriptLock() dentro de una
+// operación que ya lo tiene (recibirCompra/registrarVenta llaman a estas varias veces).
 function crearFila(nombre, datos) {
   var hoja = obtenerHoja(nombre)
   var encabezados = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0]
@@ -263,10 +273,8 @@ function crearFila(nombre, datos) {
   })
   var numeroFila = hoja.getLastRow() + 1
   var rango = hoja.getRange(numeroFila, 1, 1, encabezados.length)
-  // Formato de texto: si no, Sheets convierte solas cadenas tipo "20-08-2026" en
-  // fechas reales y rompe el formato DD-MM-AAAA que usa el resto de la app.
-  rango.setNumberFormat('@')
   rango.setValues([fila])
+  corregirFechasConvertidas(rango, fila)
   return datos
 }
 
@@ -284,9 +292,26 @@ function actualizarFila(nombre, id, datos) {
     return valor
   })
   var rango = hoja.getRange(numeroFila, 1, 1, encabezados.length)
-  rango.setNumberFormat('@')
   rango.setValues([nuevaFila])
+  corregirFechasConvertidas(rango, nuevaFila)
   return actualizado
+}
+
+// Sheets convierte solas cadenas tipo "20-08-2026" en fechas reales al escribirlas,
+// lo que rompe el formato DD-MM-AAAA del resto de la app. Forzar '@' (texto) en toda
+// la fila de entrada evitaría esto, pero también convierte booleanos (activo) en el
+// texto "true"/"false" en vez de dejarlos como booleano real. Por eso corregimos solo
+// las celdas que Sheets efectivamente convirtió a fecha, dejando números y booleanos
+// intactos.
+function corregirFechasConvertidas(rango, filaEscrita) {
+  var valores = rango.getValues()[0]
+  valores.forEach(function (valor, i) {
+    if (Object.prototype.toString.call(valor) === '[object Date]' && typeof filaEscrita[i] === 'string') {
+      var celda = rango.getCell(1, i + 1)
+      celda.setNumberFormat('@')
+      celda.setValue(filaEscrita[i])
+    }
+  })
 }
 
 function borrarFila(nombre, id) {
@@ -346,7 +371,7 @@ function formatearSiEsFecha(valor) {
 }
 
 function esVerdadero(valor) {
-  return valor === true || valor === 'TRUE' || valor === 'VERDADERO' || valor === 1
+  return valor === true || valor === 'TRUE' || valor === 'true' || valor === 'VERDADERO' || valor === 1
 }
 
 function responder(objeto) {
