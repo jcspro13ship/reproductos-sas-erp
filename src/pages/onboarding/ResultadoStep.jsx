@@ -2,7 +2,7 @@ import BloqueCopiable from "../../components/BloqueCopiable";
 import { filasATSV } from "../../lib/tsv";
 import { ROLES_PLANTILLA, PERMISOS_PLANTILLA } from "../../lib/rolesPlantilla";
 
-const COLS_EMPRESA = ["id", "nombre", "nit", "logo_url", "color_primario", "color_secundario", "direccion", "telefono", "email"];
+const COLS_EMPRESA = ["id", "nombre", "nit", "logo_url", "color_primario", "color_secundario", "direccion", "telefono", "email", "moneda_base"];
 const COLS_USUARIOS = ["id", "nombre", "email", "rol_id", "activo"];
 const COLS_ROLES = ["id", "nombre"];
 const COLS_PERMISOS = ["rol_id", "modulo", "nivel_acceso"];
@@ -19,6 +19,7 @@ export default function ResultadoStep({ empresa, colores, usuarios }) {
       direccion: empresa.direccion,
       telefono: empresa.telefono,
       email: empresa.email,
+      moneda_base: empresa.moneda_base || "COP",
     },
   ];
 

@@ -35,42 +35,45 @@ Datos — Google Sheets (un Sheet por cliente)
 
 **Entidades núcleo y relaciones:**
 
-- `EMPRESA` — 1 registro. Datos de configuración: nombre, NIT, logo, colores, dirección.
+- `EMPRESA` — 1 registro. Datos de configuración: nombre, NIT, logo, colores, dirección, moneda_base (moneda en la que se llevan costo promedio, comisiones, CxC/CxP y reportes — configurable por negocio, no fija a COP).
 - `USUARIOS` — usuarios del panel interno. Campos: id, nombre, email, rol_id, activo.
 - `ROLES` — roles definidos por el negocio (configurable). Campos: id, nombre.
 - `PERMISOS_ROL` — matriz de permisos. Campos: rol_id, módulo, nivel_acceso (ninguno / ver / editar / total).
+- `TASAS_CAMBIO` — tasa vigente por moneda. Campos: id, moneda, nombre, tasa (cuántas unidades de moneda_base equivalen a 1 unidad de esa moneda), fecha_actualizacion. Es la tasa "actual", editable en cualquier momento — no es un histórico ni afecta compras/ventas ya registradas (ver sección 4/5).
 - `LINEAS` — líneas de producto. Campos: id, nombre, % comisión por defecto.
 - `PRODUCTOS` — catálogo de productos. Campos: id, nombre, línea_id, iva_pct (0 = exento/excluido), costo_promedio, stock_actual.
-- `LISTAS_PRECIO` — listas de precio configurables por negocio. Campos: id, nombre (ej: público, mayorista, distribuidor).
-- `PRECIOS_PRODUCTO` — matriz producto × lista. Campos: producto_id, lista_id, precio (incluye IVA — precio final al público).
+- `LISTAS_PRECIO` — listas de precio configurables por negocio. Campos: id, nombre (ej: público, mayorista, distribuidor), moneda (una lista completa está en una sola moneda, ej. "Mayorista USD").
+- `PRECIOS_PRODUCTO` — matriz producto × lista. Campos: id, producto_id, lista_id, precio (incluye IVA — precio final al público, en la moneda de esa lista).
 - `PROVEEDORES` — campos: id, nombre, contacto.
-- `COMPRAS` — encabezado de orden de compra. Campos: id, proveedor_id, fecha, estado.
-- `COMPRAS_DETALLE` — líneas de la compra. Campos: compra_id, producto_id, cantidad, costo_unitario.
-- `MOVIMIENTOS_INVENTARIO` — entradas y salidas de inventario, referencia a compra o venta, usado para recalcular costo promedio.
+- `COMPRAS` — encabezado de orden de compra. Campos: id, proveedor_id, fecha, estado, moneda, tasa_cambio (tasa vigente al momento de registrar la compra, copiada de TASAS_CAMBIO y congelada en esta fila).
+- `COMPRAS_DETALLE` — líneas de la compra. Campos: compra_id, producto_id, cantidad, costo_unitario (en la moneda de la compra, sin convertir).
+- `MOVIMIENTOS_INVENTARIO` — entradas y salidas de inventario, referencia a compra o venta, usado para recalcular costo promedio. costo_unitario siempre queda en moneda_base (ya convertido), para que el costo promedio del producto sea comparable entre compras en distintas monedas.
 - `CLIENTES` — campos: id, nombre, contacto, lista_precio_id, credencial (usuario/clave o link mágico, opcional).
 - `COTIZACIONES` — mismo esquema que ventas, pero no afecta inventario hasta convertirse en venta.
-- `VENTAS` — encabezado de venta. Campos: id, cliente_id, vendedor_id, fecha, estado.
-- `VENTAS_DETALLE` — líneas de venta. Campos: venta_id, producto_id, cantidad, precio_unitario.
+- `VENTAS` — encabezado de venta. Campos: id, cliente_id, vendedor_id, fecha, estado, moneda, tasa_cambio (congelada igual que en COMPRAS).
+- `VENTAS_DETALLE` — líneas de venta. Campos: venta_id, producto_id, cantidad, precio_unitario (en la moneda de la venta, sin convertir).
 - `COMISIONES` — campos: venta_id, vendedor_id, valor_comisión, estado_pago.
 - `CXC` — cuentas por cobrar. Campos: cliente_id, venta_id, saldo, fecha_vencimiento.
 - `CXP` — cuentas por pagar. Campos: proveedor_id, compra_id, saldo, fecha_vencimiento.
 
 ## 4. Flujo de compras
 
-1. **Orden de compra** — selecciona proveedor y productos.
+1. **Orden de compra** — selecciona proveedor, moneda de la compra (si es distinta a moneda_base, la tasa vigente de `TASAS_CAMBIO` se propone automáticamente y se puede sobrescribir a mano) y productos con su costo en esa moneda.
 2. **Recepción de mercancía** — verifica cantidades recibidas.
-3. **Actualiza inventario** — recalcula costo promedio ponderado:
-   `nuevo_costo = (stock_actual × costo_actual + cantidad_comprada × costo_compra) / (stock_actual + cantidad_comprada)`
-4. **Genera cuenta por pagar (CxP)** al proveedor.
+3. **Actualiza inventario** — el costo de cada línea se convierte a moneda_base (`costo_compra × tasa_cambio`) y ahí sí se recalcula el costo promedio ponderado:
+   `nuevo_costo = (stock_actual × costo_actual + cantidad_comprada × costo_compra_convertido) / (stock_actual + cantidad_comprada)`
+4. **Genera cuenta por pagar (CxP)** al proveedor, en moneda_base.
 5. **Registra pago** — actualiza saldo de CxP (permite pagos parciales).
 
 ## 5. Flujo de ventas
 
 1. **Cotización (opcional)** — se convierte en venta cuando el cliente confirma.
-2. **Registra venta** — verifica stock disponible. **Se permite venta con inventario en negativo** (backorder); el sistema no bloquea, solo debe alertar visualmente en el tablero de control cuando un producto queda en negativo.
-3. **Descuenta inventario** al costo promedio ponderado vigente — esto calcula automáticamente la rentabilidad real de cada venta.
-4. **Calcula comisión** del vendedor, sobre el **valor de venta (ingreso)**, según el % configurado por línea de producto.
-5. **Genera cuenta por cobrar (CxC)** al cliente.
+2. **Registra venta** — selecciona moneda de la venta (misma lógica de tasa propuesta/editable que en compras), verifica stock disponible. **Se permite venta con inventario en negativo** (backorder); el sistema no bloquea, solo debe alertar visualmente en el tablero de control cuando un producto queda en negativo.
+3. **Descuenta inventario** al costo promedio ponderado vigente (siempre en moneda_base) — esto calcula automáticamente la rentabilidad real de cada venta, convirtiendo el ingreso de la venta a moneda_base con su tasa_cambio para que sea comparable contra el costo.
+4. **Calcula comisión** del vendedor, sobre el **valor de venta (ingreso) convertido a moneda_base**, según el % configurado por línea de producto — así el vendedor siempre cobra en la moneda local del negocio, sin importar en qué moneda se facturó la venta.
+5. **Genera cuenta por cobrar (CxC)** al cliente, en moneda_base.
+
+**Nota sobre tasas de cambio**: la tasa que queda grabada en cada COMPRAS/VENTAS es una foto fija del momento del registro. Actualizar la tasa vigente en `TASAS_CAMBIO` después nunca modifica compras/ventas ya registradas — solo aplica como valor propuesto para las siguientes.
 
 ## 6. Roles y permisos
 

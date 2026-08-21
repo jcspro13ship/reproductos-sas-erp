@@ -3,7 +3,7 @@ import { api } from "../lib/api";
 import { descargarCSV, filasACSV } from "../lib/csv";
 import FormularioEntidad from "./FormularioEntidad";
 
-export default function TablaEditable({ sheet, titulo, columnas, campos }) {
+export default function TablaEditable({ sheet, titulo, columnas, campos, onGuardado }) {
   const [filas, setFilas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
@@ -30,6 +30,7 @@ export default function TablaEditable({ sheet, titulo, columnas, campos }) {
   function cerrarFormulario() {
     setEditando(null);
     setRefreshKey((k) => k + 1);
+    onGuardado?.();
   }
 
   return (

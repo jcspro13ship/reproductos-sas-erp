@@ -13,6 +13,7 @@ export default function Onboarding() {
   const [empresa, setEmpresa] = useState({
     nombre: "",
     nit: "",
+    moneda_base: "COP",
     direccion: "",
     telefono: "",
     email: "",

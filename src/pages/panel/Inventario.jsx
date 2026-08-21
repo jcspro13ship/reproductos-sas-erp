@@ -5,9 +5,11 @@ import TablaEditable from "../../components/TablaEditable";
 export default function Inventario() {
   const [lineas, setLineas] = useState([]);
 
-  useEffect(() => {
+  function cargarLineas() {
     api.list("LINEAS").then(setLineas);
-  }, []);
+  }
+
+  useEffect(cargarLineas, []);
 
   const opcionesLinea = lineas.map((l) => ({ value: l.id, label: l.nombre }));
 
@@ -55,6 +57,7 @@ export default function Inventario() {
           { key: "nombre", label: "Nombre", tipo: "texto", requerido: true },
           { key: "comision_default_pct", label: "Comisión por defecto", tipo: "porcentaje", requerido: true },
         ]}
+        onGuardado={cargarLineas}
       />
     </div>
   );

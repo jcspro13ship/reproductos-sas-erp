@@ -10,9 +10,10 @@
 // POST { action: "login", data: { email } }
 // POST { action: "loginCliente", data: { usuario, clave } }
 // POST { action: "recibirCompra", data: { proveedor_id, fecha, estado, fecha_vencimiento,
-//        items: [{ producto_id, cantidad, costo_unitario }] } }
+//        moneda, tasa_cambio, items: [{ producto_id, cantidad, costo_unitario }] } }
 // POST { action: "registrarVenta", data: { cliente_id, vendedor_id, fecha, estado,
-//        fecha_vencimiento, items: [{ producto_id, cantidad, precio_unitario }] } }
+//        fecha_vencimiento, moneda, tasa_cambio, items: [{ producto_id, cantidad, precio_unitario }] } }
+// moneda/tasa_cambio son opcionales: si se omiten, se asume tasa_cambio=1 (ya en moneda_base).
 
 function doGet(e) {
   try {
@@ -111,13 +112,19 @@ function recibirCompra(datos) {
   var lock = LockService.getScriptLock()
   lock.waitLock(10000)
   try {
+    var tasaCambio = Number(datos.tasa_cambio) || 1
     var compra = crearFila('COMPRAS', {
       proveedor_id: datos.proveedor_id,
       fecha: datos.fecha,
       estado: datos.estado || 'recibida',
+      moneda: datos.moneda || '',
+      tasa_cambio: tasaCambio,
     })
 
-    var totalCompra = 0
+    // El costo de cada línea llega en la moneda de la compra; se convierte a
+    // moneda_base con la tasa (congelada en esta compra) para que el costo
+    // promedio y la CxP queden en una sola moneda, comparable entre compras.
+    var totalCompraBase = 0
     var detalles = (datos.items || []).map(function (item) {
       var detalle = crearFila('COMPRAS_DETALLE', {
         compra_id: compra.id,
@@ -132,11 +139,11 @@ function recibirCompra(datos) {
       var stockActual = Number(producto.stock_actual) || 0
       var costoActual = Number(producto.costo_promedio) || 0
       var cantidadComprada = Number(item.cantidad)
-      var costoCompra = Number(item.costo_unitario)
+      var costoCompraBase = Number(item.costo_unitario) * tasaCambio
       var nuevoStock = stockActual + cantidadComprada
       // Costo promedio ponderado: nuevo_costo = (stock*costo + cant_comprada*costo_compra) / (stock+cant_comprada)
       var nuevoCosto =
-        nuevoStock > 0 ? (stockActual * costoActual + cantidadComprada * costoCompra) / nuevoStock : costoCompra
+        nuevoStock > 0 ? (stockActual * costoActual + cantidadComprada * costoCompraBase) / nuevoStock : costoCompraBase
 
       actualizarFila('PRODUCTOS', producto.id, { stock_actual: nuevoStock, costo_promedio: nuevoCosto })
 
@@ -146,18 +153,18 @@ function recibirCompra(datos) {
         cantidad: cantidadComprada,
         referencia_tipo: 'compra',
         referencia_id: compra.id,
-        costo_unitario: costoCompra,
+        costo_unitario: costoCompraBase,
         fecha: datos.fecha,
       })
 
-      totalCompra += cantidadComprada * costoCompra
+      totalCompraBase += cantidadComprada * costoCompraBase
       return detalle
     })
 
     var cxp = crearFila('CXP', {
       proveedor_id: datos.proveedor_id,
       compra_id: compra.id,
-      saldo: totalCompra,
+      saldo: totalCompraBase,
       fecha_vencimiento: datos.fecha_vencimiento || '',
     })
 
@@ -171,16 +178,22 @@ function registrarVenta(datos) {
   var lock = LockService.getScriptLock()
   lock.waitLock(10000)
   try {
+    var tasaCambio = Number(datos.tasa_cambio) || 1
     var venta = crearFila('VENTAS', {
       cliente_id: datos.cliente_id,
       vendedor_id: datos.vendedor_id,
       fecha: datos.fecha,
       estado: datos.estado || 'cerrada',
+      moneda: datos.moneda || '',
+      tasa_cambio: tasaCambio,
     })
 
     var lineas = leerTodo('LINEAS')
-    var totalVenta = 0
-    var totalComision = 0
+    // El precio de cada línea llega en la moneda de la venta; comisión y CxC se
+    // calculan convertidos a moneda_base (con la tasa congelada en esta venta)
+    // para que el vendedor siempre cobre en la moneda local del negocio.
+    var totalVentaBase = 0
+    var totalComisionBase = 0
     var detalles = (datos.items || []).map(function (item) {
       var detalle = crearFila('VENTAS_DETALLE', {
         venta_id: venta.id,
@@ -208,14 +221,14 @@ function registrarVenta(datos) {
         fecha: datos.fecha,
       })
 
-      var subtotal = cantidadVendida * Number(item.precio_unitario)
-      totalVenta += subtotal
+      var subtotalBase = cantidadVendida * Number(item.precio_unitario) * tasaCambio
+      totalVentaBase += subtotalBase
 
       var linea = lineas.find(function (l) {
         return String(l.id) === String(producto.linea_id)
       })
       var pctComision = linea ? Number(linea.comision_default_pct) || 0 : 0
-      totalComision += subtotal * pctComision
+      totalComisionBase += subtotalBase * pctComision
 
       return detalle
     })
@@ -223,14 +236,14 @@ function registrarVenta(datos) {
     var comision = crearFila('COMISIONES', {
       venta_id: venta.id,
       vendedor_id: datos.vendedor_id,
-      valor_comision: totalComision,
+      valor_comision: totalComisionBase,
       estado_pago: 'pendiente',
     })
 
     var cxc = crearFila('CXC', {
       cliente_id: datos.cliente_id,
       venta_id: venta.id,
-      saldo: totalVenta,
+      saldo: totalVentaBase,
       fecha_vencimiento: datos.fecha_vencimiento || '',
     })
 

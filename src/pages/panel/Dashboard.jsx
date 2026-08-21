@@ -2,7 +2,14 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { api } from "../../lib/api";
 import { formatoMoneda } from "../../lib/formato";
-import { comisionPendiente, porVencerEnDias, productosEnNegativo, resumenCartera, ventasDelMes } from "../../lib/tablero";
+import {
+  comisionPendiente,
+  comprasDelMes,
+  porVencerEnDias,
+  productosEnNegativo,
+  resumenCartera,
+  ventasDelMes,
+} from "../../lib/tablero";
 import KpiCard from "../../components/KpiCard";
 
 export default function Dashboard() {
@@ -121,22 +128,13 @@ function BloqueInventario({ productos }) {
 }
 
 function BloqueCompras({ compras, comprasDetalle }) {
-  const hoy = new Date();
-  const delMes = compras.filter((c) => {
-    const [dd, mm, aaaa] = String(c.fecha || "").split("-").map(Number);
-    return mm - 1 === hoy.getMonth() && aaaa === hoy.getFullYear();
-  });
-  const ids = new Set(delMes.map((c) => c.id));
-  const total = comprasDetalle
-    .filter((d) => ids.has(d.compra_id))
-    .reduce((acc, d) => acc + (Number(d.cantidad) || 0) * (Number(d.costo_unitario) || 0), 0);
-
+  const resumen = comprasDelMes(compras, comprasDetalle);
   return (
     <section>
       <strong style={{ fontSize: 14 }}>Compras</strong>
       <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
-        <KpiCard etiqueta="Compras del mes" valor={delMes.length} />
-        <KpiCard etiqueta="Total comprado este mes" valor={formatoMoneda(total)} />
+        <KpiCard etiqueta="Compras del mes" valor={resumen.cantidad} />
+        <KpiCard etiqueta="Total comprado este mes" valor={formatoMoneda(resumen.total)} />
       </div>
     </section>
   );

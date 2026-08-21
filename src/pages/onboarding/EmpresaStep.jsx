@@ -40,6 +40,14 @@ export default function EmpresaStep({ empresa, onChange, onColoresSugeridos }) {
         <input value={empresa.nit} onChange={set("nit")} placeholder="900123456-7" />
       </label>
       <label>
+        Moneda base *
+        <input value={empresa.moneda_base} onChange={set("moneda_base")} placeholder="COP" maxLength={3} />
+        <span style={{ display: "block", fontSize: 11, opacity: 0.6, fontWeight: 400 }}>
+          Código de 3 letras (ISO 4217). Es la moneda en la que quedan costo promedio, comisiones, CxC/CxP y
+          reportes.
+        </span>
+      </label>
+      <label>
         Dirección
         <input value={empresa.direccion} onChange={set("direccion")} />
       </label>

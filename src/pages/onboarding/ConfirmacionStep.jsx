@@ -9,6 +9,7 @@ export default function ConfirmacionStep({ empresa, colores, usuarios }) {
         <strong style={{ fontSize: 14 }}>Empresa</strong>
         <ul style={{ fontSize: 14, marginTop: 6 }}>
           <li>{empresa.nombre || "(sin nombre)"}</li>
+          <li>Moneda base: {empresa.moneda_base || "COP"}</li>
           {empresa.nit && <li>NIT: {empresa.nit}</li>}
           {empresa.direccion && <li>{empresa.direccion}</li>}
           {(empresa.telefono || empresa.email) && (

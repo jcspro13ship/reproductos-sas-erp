@@ -12,10 +12,27 @@ export function ventasDelMes(ventas, ventasDetalle, { vendedorId } = {}) {
     const coincideVendedor = !vendedorId || v.vendedor_id === vendedorId;
     return coincideFecha && coincideVendedor;
   });
-  const ids = new Set(delMes.map((v) => v.id));
+  // precio_unitario está en la moneda de cada venta; se normaliza a moneda_base con
+  // la tasa congelada en esa venta antes de sumar, para no mezclar monedas distintas.
+  const tasaPorVenta = new Map(delMes.map((v) => [v.id, Number(v.tasa_cambio) || 1]));
   const total = ventasDetalle
-    .filter((d) => ids.has(d.venta_id))
-    .reduce((acc, d) => acc + (Number(d.cantidad) || 0) * (Number(d.precio_unitario) || 0), 0);
+    .filter((d) => tasaPorVenta.has(d.venta_id))
+    .reduce((acc, d) => acc + (Number(d.cantidad) || 0) * (Number(d.precio_unitario) || 0) * tasaPorVenta.get(d.venta_id), 0);
+  return { cantidad: delMes.length, total };
+}
+
+export function comprasDelMes(compras, comprasDetalle) {
+  const hoy = new Date();
+  const delMes = compras.filter((c) => {
+    const fecha = parseDDMMAAAA(c.fecha);
+    return fecha && fecha.getMonth() === hoy.getMonth() && fecha.getFullYear() === hoy.getFullYear();
+  });
+  // costo_unitario está en la moneda de cada compra; se normaliza a moneda_base
+  // con la tasa congelada en esa compra antes de sumar.
+  const tasaPorCompra = new Map(delMes.map((c) => [c.id, Number(c.tasa_cambio) || 1]));
+  const total = comprasDetalle
+    .filter((d) => tasaPorCompra.has(d.compra_id))
+    .reduce((acc, d) => acc + (Number(d.cantidad) || 0) * (Number(d.costo_unitario) || 0) * tasaPorCompra.get(d.compra_id), 0);
   return { cantidad: delMes.length, total };
 }
 
