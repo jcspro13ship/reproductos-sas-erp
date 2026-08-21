@@ -38,7 +38,7 @@ export default function TablaGenerica({ sheet, columnas, titulo }) {
             {filas.map((fila, i) => (
               <tr key={fila.id ?? i}>
                 {columnas.map((c) => (
-                  <td key={c.key}>{fila[c.key]}</td>
+                  <td key={c.key}>{typeof fila[c.key] === "boolean" ? (fila[c.key] ? "Sí" : "No") : fila[c.key]}</td>
                 ))}
               </tr>
             ))}

@@ -261,7 +261,12 @@ function crearFila(nombre, datos) {
   var fila = encabezados.map(function (encabezado) {
     return datos[encabezado] !== undefined ? datos[encabezado] : ''
   })
-  hoja.appendRow(fila)
+  var numeroFila = hoja.getLastRow() + 1
+  var rango = hoja.getRange(numeroFila, 1, 1, encabezados.length)
+  // Formato de texto: si no, Sheets convierte solas cadenas tipo "20-08-2026" en
+  // fechas reales y rompe el formato DD-MM-AAAA que usa el resto de la app.
+  rango.setNumberFormat('@')
+  rango.setValues([fila])
   return datos
 }
 
@@ -278,7 +283,9 @@ function actualizarFila(nombre, id, datos) {
     actualizado[encabezado] = valor
     return valor
   })
-  hoja.getRange(numeroFila, 1, 1, encabezados.length).setValues([nuevaFila])
+  var rango = hoja.getRange(numeroFila, 1, 1, encabezados.length)
+  rango.setNumberFormat('@')
+  rango.setValues([nuevaFila])
   return actualizado
 }
 
@@ -320,10 +327,22 @@ function sheetToObjects(sheet) {
     .map(function (fila) {
       var obj = {}
       encabezados.forEach(function (h, i) {
-        obj[h] = fila[i]
+        obj[h] = formatearSiEsFecha(fila[i])
       })
       return obj
     })
+}
+
+// Si alguien escribe una fecha a mano en el Sheet (sin forzar texto), Sheets la
+// guarda como fecha real; la devolvemos en DD-MM-AAAA para no romper el formato
+// que usa el resto de la app.
+function formatearSiEsFecha(valor) {
+  if (Object.prototype.toString.call(valor) === '[object Date]') {
+    var dd = ('0' + valor.getDate()).slice(-2)
+    var mm = ('0' + (valor.getMonth() + 1)).slice(-2)
+    return dd + '-' + mm + '-' + valor.getFullYear()
+  }
+  return valor
 }
 
 function esVerdadero(valor) {
