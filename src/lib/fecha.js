@@ -11,3 +11,11 @@ export function parseDDMMAAAA(texto) {
   if (!dd || !mm || !aaaa) return null;
   return new Date(aaaa, mm - 1, dd);
 }
+
+// Para leer el valor de un <input type="date"> (formato AAAA-MM-DD) sin desfases de zona horaria.
+export function parseFechaInput(iso) {
+  if (!iso) return null;
+  const [aaaa, mm, dd] = iso.split("-").map(Number);
+  if (!dd || !mm || !aaaa) return null;
+  return new Date(aaaa, mm - 1, dd);
+}
