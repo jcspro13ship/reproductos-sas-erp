@@ -56,6 +56,13 @@ export default function ProductoDetalle() {
         <p style={{ fontSize: 20, fontWeight: 600, margin: "12px 0" }}>
           {producto.precio != null ? `$${Number(producto.precio).toLocaleString("es-CO")}` : "Consultar precio"}
         </p>
+        <p style={{ fontSize: 13 }}>
+          {Number(producto.stock_actual) > 0 ? (
+            <span style={{ color: "var(--color-primario)" }}>Disponible ({producto.stock_actual} en stock)</span>
+          ) : (
+            <span style={{ opacity: 0.6 }}>Sin stock — disponible para pedido especial</span>
+          )}
+        </p>
         <div style={{ display: "flex", gap: 8, alignItems: "center", margin: "16px 0" }}>
           <input
             type="number"

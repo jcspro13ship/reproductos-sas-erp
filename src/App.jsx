@@ -10,6 +10,7 @@ import Inicio from "./pages/public/Inicio";
 import Catalogo from "./pages/public/Catalogo";
 import ProductoDetalle from "./pages/public/ProductoDetalle";
 import Carrito from "./pages/public/Carrito";
+import IngresoCliente from "./pages/public/IngresoCliente";
 
 import Login from "./pages/panel/Login";
 import Dashboard from "./pages/panel/Dashboard";
@@ -36,6 +37,7 @@ export default function App() {
               <Route path="/catalogo" element={<Catalogo />} />
               <Route path="/producto/:id" element={<ProductoDetalle />} />
               <Route path="/carrito" element={<Carrito />} />
+              <Route path="/ingresar" element={<IngresoCliente />} />
             </Route>
 
             <Route path="/panel/login" element={<Login />} />

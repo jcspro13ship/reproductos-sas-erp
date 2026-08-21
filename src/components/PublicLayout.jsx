@@ -1,9 +1,17 @@
-import { Link, Outlet } from "react-router-dom";
+import { Link, Outlet, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
+import { useClienteAuth } from "../context/ClienteAuthContext";
 
 export default function PublicLayout() {
   const { items } = useCart();
+  const { cliente, logout } = useClienteAuth();
+  const navigate = useNavigate();
   const cantidadTotal = items.reduce((acc, i) => acc + i.cantidad, 0);
+
+  function handleLogout() {
+    logout();
+    navigate("/catalogo");
+  }
 
   return (
     <div>
@@ -25,6 +33,18 @@ export default function PublicLayout() {
             <Link to="/carrito" style={{ textDecoration: "none" }}>
               Carrito {cantidadTotal > 0 ? `(${cantidadTotal})` : ""}
             </Link>
+            {cliente ? (
+              <span style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
+                Hola, {cliente.nombre}
+                <button className="boton-secundario boton" onClick={handleLogout}>
+                  Salir
+                </button>
+              </span>
+            ) : (
+              <Link to="/ingresar" style={{ textDecoration: "none", fontSize: 13 }}>
+                Ingresar
+              </Link>
+            )}
             <Link to="/panel/login" style={{ textDecoration: "none", fontSize: 13, opacity: 0.7 }}>
               Panel interno
             </Link>
