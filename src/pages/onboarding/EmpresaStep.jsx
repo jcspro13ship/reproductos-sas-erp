@@ -1,6 +1,31 @@
-export default function EmpresaStep({ empresa, onChange }) {
+import { useState } from "react";
+import { extraerColoresDeImagen } from "../../lib/colores";
+
+export default function EmpresaStep({ empresa, onChange, onColoresSugeridos }) {
+  const [analizando, setAnalizando] = useState(false);
+  const [errorLogo, setErrorLogo] = useState(null);
+
   function set(campo) {
     return (e) => onChange({ ...empresa, [campo]: e.target.value });
+  }
+
+  async function handleLogo(e) {
+    const archivo = e.target.files?.[0];
+    if (!archivo) return;
+    setAnalizando(true);
+    setErrorLogo(null);
+    try {
+      const colores = await extraerColoresDeImagen(archivo);
+      if (!colores) {
+        setErrorLogo("No se pudieron detectar colores claros en esta imagen — ajústalos manualmente en el siguiente paso.");
+        return;
+      }
+      onColoresSugeridos(colores);
+    } catch (err) {
+      setErrorLogo(err.message);
+    } finally {
+      setAnalizando(false);
+    }
   }
 
   return (
@@ -34,6 +59,16 @@ export default function EmpresaStep({ empresa, onChange }) {
           placeholder="Link de Drive/Imgur al logo ya subido"
         />
       </label>
+      <label>
+        Sugerir colores desde el logo (opcional)
+        <input type="file" accept="image/*" onChange={handleLogo} />
+        <span style={{ display: "block", fontSize: 11, opacity: 0.6, fontWeight: 400 }}>
+          La imagen no se sube a ningún lado, solo se analiza en tu navegador para sugerir colores en el
+          siguiente paso.
+        </span>
+      </label>
+      {analizando && <p style={{ fontSize: 13, opacity: 0.7 }}>Analizando imagen...</p>}
+      {errorLogo && <p style={{ fontSize: 13, color: "crimson" }}>{errorLogo}</p>}
     </div>
   );
 }

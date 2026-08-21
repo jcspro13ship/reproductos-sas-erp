@@ -40,9 +40,9 @@ Datos — Google Sheets (un Sheet por cliente)
 - `ROLES` — roles definidos por el negocio (configurable). Campos: id, nombre.
 - `PERMISOS_ROL` — matriz de permisos. Campos: rol_id, módulo, nivel_acceso (ninguno / ver / editar / total).
 - `LINEAS` — líneas de producto. Campos: id, nombre, % comisión por defecto.
-- `PRODUCTOS` — catálogo de productos. Campos: id, nombre, línea_id, costo_promedio, stock_actual.
+- `PRODUCTOS` — catálogo de productos. Campos: id, nombre, línea_id, iva_pct (0 = exento/excluido), costo_promedio, stock_actual.
 - `LISTAS_PRECIO` — listas de precio configurables por negocio. Campos: id, nombre (ej: público, mayorista, distribuidor).
-- `PRECIOS_PRODUCTO` — matriz producto × lista. Campos: producto_id, lista_id, precio.
+- `PRECIOS_PRODUCTO` — matriz producto × lista. Campos: producto_id, lista_id, precio (incluye IVA — precio final al público).
 - `PROVEEDORES` — campos: id, nombre, contacto.
 - `COMPRAS` — encabezado de orden de compra. Campos: id, proveedor_id, fecha, estado.
 - `COMPRAS_DETALLE` — líneas de la compra. Campos: compra_id, producto_id, cantidad, costo_unitario.

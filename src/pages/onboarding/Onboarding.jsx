@@ -50,7 +50,7 @@ export default function Onboarding() {
         ))}
       </ol>
 
-      {paso === 0 && <EmpresaStep empresa={empresa} onChange={setEmpresa} />}
+      {paso === 0 && <EmpresaStep empresa={empresa} onChange={setEmpresa} onColoresSugeridos={setColores} />}
       {paso === 1 && <ColoresStep colores={colores} onChange={setColores} />}
       {paso === 2 && <UsuariosStep usuarios={usuarios} onChange={setUsuarios} />}
       {paso === 3 && <ConfirmacionStep empresa={empresa} colores={colores} usuarios={usuarios} />}
