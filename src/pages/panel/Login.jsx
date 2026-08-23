@@ -1,11 +1,15 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useEmpresa } from "../../context/EmpresaContext";
+import { resolverLogoUrl } from "../../lib/logo";
 
 export default function Login() {
   const { login, cargando, error } = useAuth();
+  const { empresa } = useEmpresa();
   const [email, setEmail] = useState("");
   const navigate = useNavigate();
+  const logoUrl = resolverLogoUrl(empresa?.logo_url);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -15,7 +19,14 @@ export default function Login() {
 
   return (
     <div style={{ maxWidth: 360, margin: "80px auto", padding: 24 }}>
-      <h1 style={{ fontSize: 22, marginBottom: 8 }}>Panel interno</h1>
+      {logoUrl && (
+        <img
+          src={logoUrl}
+          alt={empresa?.nombre || "Logo"}
+          style={{ maxWidth: 160, maxHeight: 100, display: "block", marginBottom: 20 }}
+        />
+      )}
+      <h1 style={{ fontSize: 22, marginBottom: 8 }}>{empresa?.nombre || "Panel interno"}</h1>
       <p style={{ fontSize: 13, opacity: 0.7, marginBottom: 20 }}>
         Ingresa con el correo registrado en USUARIOS.
       </p>

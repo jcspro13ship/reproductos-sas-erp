@@ -2,11 +2,13 @@ import { Link, Outlet, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { useClienteAuth } from "../context/ClienteAuthContext";
 import { useEmpresa } from "../context/EmpresaContext";
+import { resolverLogoUrl } from "../lib/logo";
 
 export default function PublicLayout() {
   const { items } = useCart();
   const { cliente, logout } = useClienteAuth();
   const { empresa } = useEmpresa();
+  const logoUrl = resolverLogoUrl(empresa?.logo_url);
   const navigate = useNavigate();
   const cantidadTotal = items.reduce((acc, i) => acc + i.cantidad, 0);
 
@@ -22,7 +24,11 @@ export default function PublicLayout() {
           className="contenedor"
           style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}
         >
-          <Link to="/" style={{ fontWeight: 700, fontSize: 18, textDecoration: "none" }}>
+          <Link
+            to="/"
+            style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 700, fontSize: 18, textDecoration: "none" }}
+          >
+            {logoUrl && <img src={logoUrl} alt="" style={{ height: 32, width: "auto" }} />}
             {empresa?.nombre || "Catálogo"}
           </Link>
           <nav style={{ display: "flex", gap: 20, alignItems: "center" }}>
