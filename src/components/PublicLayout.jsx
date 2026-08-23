@@ -1,10 +1,12 @@
 import { Link, Outlet, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { useClienteAuth } from "../context/ClienteAuthContext";
+import { useEmpresa } from "../context/EmpresaContext";
 
 export default function PublicLayout() {
   const { items } = useCart();
   const { cliente, logout } = useClienteAuth();
+  const { empresa } = useEmpresa();
   const navigate = useNavigate();
   const cantidadTotal = items.reduce((acc, i) => acc + i.cantidad, 0);
 
@@ -21,7 +23,7 @@ export default function PublicLayout() {
           style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}
         >
           <Link to="/" style={{ fontWeight: 700, fontSize: 18, textDecoration: "none" }}>
-            Catálogo
+            {empresa?.nombre || "Catálogo"}
           </Link>
           <nav style={{ display: "flex", gap: 20, alignItems: "center" }}>
             <Link to="/" style={{ textDecoration: "none" }}>

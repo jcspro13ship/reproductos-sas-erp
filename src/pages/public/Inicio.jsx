@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom";
+import { useEmpresa } from "../../context/EmpresaContext";
 
 export default function Inicio() {
+  const { empresa } = useEmpresa();
   return (
     <div>
-      <h1 style={{ fontSize: 32, marginBottom: 12 }}>Nombre de la empresa</h1>
+      <h1 style={{ fontSize: 32, marginBottom: 12 }}>{empresa?.nombre || "Nombre de la empresa"}</h1>
       <p style={{ maxWidth: 560, opacity: 0.8 }}>
         Espacio institucional: quiénes somos, propuesta de valor, misión y visión. Este
         contenido se personaliza por cliente durante el onboarding.

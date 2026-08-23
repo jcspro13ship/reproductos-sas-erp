@@ -1,5 +1,6 @@
 import { Link, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useEmpresa } from "../context/EmpresaContext";
 
 export const MODULOS_PANEL = [
   { path: "/panel", label: "Tablero de control", modulo: "tablero" },
@@ -17,6 +18,7 @@ export const MODULOS_PANEL = [
 
 export default function PanelLayout() {
   const { sesion, logout, hasAccess } = useAuth();
+  const { empresa } = useEmpresa();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -40,7 +42,7 @@ export default function PanelLayout() {
           gap: 4,
         }}
       >
-        <div style={{ fontWeight: 700, marginBottom: 16 }}>Panel ERP</div>
+        <div style={{ fontWeight: 700, marginBottom: 16 }}>{empresa?.nombre || "Panel ERP"}</div>
         {visibles.map((m) => (
           <Link
             key={m.path}

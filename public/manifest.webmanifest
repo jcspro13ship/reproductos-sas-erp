@@ -2,7 +2,7 @@
   "name": "Reproduuctos SAS",
   "short_name": "Reproduuctos",
   "description": "Catálogo y panel de gestión de Reproduuctos SAS",
-  "start_url": ".",
+  "start_url": "./#/panel/login",
   "scope": ".",
   "display": "standalone",
   "background_color": "#ffffff",
