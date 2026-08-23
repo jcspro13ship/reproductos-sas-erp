@@ -55,6 +55,7 @@ Datos — Google Sheets (un Sheet por cliente)
 - `COMISIONES` — campos: venta_id, vendedor_id, valor_comisión, estado_pago.
 - `CXC` — cuentas por cobrar. Campos: cliente_id, venta_id, saldo, fecha_vencimiento.
 - `CXP` — cuentas por pagar. Campos: proveedor_id, compra_id, saldo, fecha_vencimiento.
+- `PAGOS` — movimientos de caja reales (cobros y pagos), siempre en moneda_base. Campos: id, referencia_tipo (cxc o cxp), referencia_id, monto, fecha. Un pago con referencia_tipo=cxc es un cobro (entra caja); uno con referencia_tipo=cxp es un pago (sale caja). Alimenta el flujo de caja del tablero de control.
 
 ## 4. Flujo de compras
 
@@ -63,7 +64,7 @@ Datos — Google Sheets (un Sheet por cliente)
 3. **Actualiza inventario** — el costo de cada línea se convierte a moneda_base (`costo_compra × tasa_cambio`) y ahí sí se recalcula el costo promedio ponderado:
    `nuevo_costo = (stock_actual × costo_actual + cantidad_comprada × costo_compra_convertido) / (stock_actual + cantidad_comprada)`
 4. **Genera cuenta por pagar (CxP)** al proveedor, en moneda_base.
-5. **Registra pago** — actualiza saldo de CxP (permite pagos parciales).
+5. **Registra pago** — descuenta el saldo de la CxP y crea un registro en `PAGOS` (permite pagos parciales); este es el momento en que el dinero realmente sale de caja, a diferencia del paso 4 que solo registra la obligación.
 
 ## 5. Flujo de ventas
 
@@ -72,6 +73,7 @@ Datos — Google Sheets (un Sheet por cliente)
 3. **Descuenta inventario** al costo promedio ponderado vigente (siempre en moneda_base) — esto calcula automáticamente la rentabilidad real de cada venta, convirtiendo el ingreso de la venta a moneda_base con su tasa_cambio para que sea comparable contra el costo.
 4. **Calcula comisión** del vendedor, sobre el **valor de venta (ingreso) convertido a moneda_base**, según el % configurado por línea de producto — así el vendedor siempre cobra en la moneda local del negocio, sin importar en qué moneda se facturó la venta.
 5. **Genera cuenta por cobrar (CxC)** al cliente, en moneda_base.
+6. **Registra cobro** — descuenta el saldo de la CxC y crea un registro en `PAGOS` (permite cobros parciales); este es el momento en que el dinero realmente entra a caja.
 
 **Nota sobre tasas de cambio**: la tasa que queda grabada en cada COMPRAS/VENTAS es una foto fija del momento del registro. Actualizar la tasa vigente en `TASAS_CAMBIO` después nunca modifica compras/ventas ya registradas — solo aplica como valor propuesto para las siguientes.
 

@@ -40,4 +40,5 @@ export const api = {
   loginCliente: (usuario, clave) => send("loginCliente", "CLIENTES", { usuario, clave }),
   recibirCompra: (data) => send("recibirCompra", undefined, { data }),
   registrarVenta: (data) => send("registrarVenta", undefined, { data }),
+  registrarPago: (data) => send("registrarPago", undefined, { data }),
 };

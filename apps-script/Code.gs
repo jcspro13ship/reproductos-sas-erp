@@ -14,6 +14,7 @@
 // POST { action: "registrarVenta", data: { cliente_id, vendedor_id, fecha, estado,
 //        fecha_vencimiento, moneda, tasa_cambio, items: [{ producto_id, cantidad, precio_unitario }] } }
 // moneda/tasa_cambio son opcionales: si se omiten, se asume tasa_cambio=1 (ya en moneda_base).
+// POST { action: "registrarPago", data: { referencia_tipo: "cxc"|"cxp", referencia_id, monto, fecha } }
 
 function doGet(e) {
   try {
@@ -69,6 +70,9 @@ function doPost(e) {
     }
     if (accion === 'registrarVenta') {
       return responder({ ok: true, data: registrarVenta(body.data || {}) })
+    }
+    if (accion === 'registrarPago') {
+      return responder(registrarPago(body.data || {}))
     }
     return responder({ ok: false, error: 'Acción POST no reconocida: ' + accion })
   } catch (err) {
@@ -248,6 +252,35 @@ function registrarVenta(datos) {
     })
 
     return { venta: venta, detalles: detalles, comision: comision, cxc: cxc }
+  } finally {
+    lock.releaseLock()
+  }
+}
+
+// Cobro (referencia_tipo=cxc) o pago (referencia_tipo=cxp) real de caja: descuenta
+// el saldo pendiente y deja registro en PAGOS. Permite pagos/cobros parciales.
+function registrarPago(datos) {
+  var lock = LockService.getScriptLock()
+  lock.waitLock(10000)
+  try {
+    var sheetCuenta = datos.referencia_tipo === 'cxc' ? 'CXC' : datos.referencia_tipo === 'cxp' ? 'CXP' : null
+    if (!sheetCuenta) return { ok: false, error: 'referencia_tipo debe ser "cxc" o "cxp"' }
+
+    var cuenta = buscarPorId(sheetCuenta, datos.referencia_id)
+    if (!cuenta) return { ok: false, error: 'No se encontró la cuenta ' + datos.referencia_id }
+
+    var monto = Number(datos.monto) || 0
+    var nuevoSaldo = (Number(cuenta.saldo) || 0) - monto
+    actualizarFila(sheetCuenta, cuenta.id, { saldo: nuevoSaldo })
+
+    var pago = crearFila('PAGOS', {
+      referencia_tipo: datos.referencia_tipo,
+      referencia_id: datos.referencia_id,
+      monto: monto,
+      fecha: datos.fecha,
+    })
+
+    return { ok: true, data: { pago: pago, saldo: nuevoSaldo } }
   } finally {
     lock.releaseLock()
   }

@@ -1,3 +1,5 @@
 export function formatoMoneda(valor) {
-  return `$${Math.round(valor).toLocaleString("es-CO")}`;
+  const redondeado = Math.round(valor);
+  const signo = redondeado < 0 ? "-" : "";
+  return `${signo}$${Math.abs(redondeado).toLocaleString("es-CO")}`;
 }

@@ -10,6 +10,7 @@ import {
   resumenCartera,
   ventasDelMes,
 } from "../../lib/tablero";
+import { flujoDeCajaDelMes } from "../../lib/caja";
 import KpiCard from "../../components/KpiCard";
 
 export default function Dashboard() {
@@ -28,9 +29,10 @@ export default function Dashboard() {
       api.list("COMISIONES"),
       api.list("CXC"),
       api.list("CXP"),
+      api.list("PAGOS"),
     ])
-      .then(([productos, ventas, ventasDetalle, compras, comprasDetalle, comisiones, cxc, cxp]) => {
-        setDatos({ productos, ventas, ventasDetalle, compras, comprasDetalle, comisiones, cxc, cxp });
+      .then(([productos, ventas, ventasDetalle, compras, comprasDetalle, comisiones, cxc, cxp, pagos]) => {
+        setDatos({ productos, ventas, ventasDetalle, compras, comprasDetalle, comisiones, cxc, cxp, pagos });
       })
       .catch((e) => setError(e.message))
       .finally(() => setCargando(false));
@@ -46,7 +48,7 @@ export default function Dashboard() {
   // a "lo mío" de la vista completa que ven los demás roles con acceso al módulo.
   const soloMisVentas = !esAdmin && hasAccess("ventas", "ver") && !hasAccess("cxp", "ver") && !hasAccess("compras", "ver");
 
-  const { productos, ventas, ventasDetalle, compras, comprasDetalle, comisiones, cxc, cxp } = datos;
+  const { productos, ventas, ventasDetalle, compras, comprasDetalle, comisiones, cxc, cxp, pagos } = datos;
 
   return (
     <div>
@@ -54,6 +56,8 @@ export default function Dashboard() {
       <p style={{ opacity: 0.7, marginBottom: 24 }}>Hola {sesion?.usuario?.nombre}.</p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+        {hasAccess("cxc", "ver") && hasAccess("cxp", "ver") && <BloqueFlujoCaja pagos={pagos} />}
+
         {hasAccess("ventas", "ver") && (
           <BloqueVentas
             ventas={ventas}
@@ -135,6 +139,23 @@ function BloqueCompras({ compras, comprasDetalle }) {
       <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
         <KpiCard etiqueta="Compras del mes" valor={resumen.cantidad} />
         <KpiCard etiqueta="Total comprado este mes" valor={formatoMoneda(resumen.total)} />
+      </div>
+    </section>
+  );
+}
+
+function BloqueFlujoCaja({ pagos }) {
+  const flujo = flujoDeCajaDelMes(pagos);
+  return (
+    <section>
+      <strong style={{ fontSize: 14 }}>Flujo de caja</strong>
+      <p style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>
+        Cobros y pagos reales del mes (no cartera pendiente). Se actualiza cada vez que recargas el tablero.
+      </p>
+      <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
+        <KpiCard etiqueta="Cobros del mes" valor={formatoMoneda(flujo.cobros)} />
+        <KpiCard etiqueta="Pagos del mes" valor={formatoMoneda(flujo.pagos)} />
+        <KpiCard etiqueta="Flujo neto" valor={formatoMoneda(flujo.neto)} alerta={flujo.neto < 0} />
       </div>
     </section>
   );

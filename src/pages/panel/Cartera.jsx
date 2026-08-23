@@ -1,11 +1,12 @@
-import TablaGenerica from "../../components/TablaGenerica";
+import TablaCartera from "./TablaCartera";
 
 export default function Cartera() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
-      <TablaGenerica
+      <TablaCartera
         titulo="Cuentas por cobrar (CxC)"
         sheet="CXC"
+        referenciaTipo="cxc"
         columnas={[
           { key: "id", label: "ID" },
           { key: "cliente_id", label: "Cliente" },
@@ -14,9 +15,10 @@ export default function Cartera() {
           { key: "fecha_vencimiento", label: "Vence" },
         ]}
       />
-      <TablaGenerica
+      <TablaCartera
         titulo="Cuentas por pagar (CxP)"
         sheet="CXP"
+        referenciaTipo="cxp"
         columnas={[
           { key: "id", label: "ID" },
           { key: "proveedor_id", label: "Proveedor" },
