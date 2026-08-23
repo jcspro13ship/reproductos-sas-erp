@@ -2,3 +2,7 @@ node_modules
 dist
 .DS_Store
 .env.local
+
+# Documentos comerciales del primer cliente (Total Vet), no pertenecen a la plantilla genérica
+Propuesta_TotalVet_ERP_Catalogo_JCS_Emprende.docx
+Propuesta_TotalVet_ERP_Catalogo_JCS_Emprende.pdf
