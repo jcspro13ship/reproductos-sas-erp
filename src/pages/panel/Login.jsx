@@ -8,12 +8,13 @@ export default function Login() {
   const { login, cargando, error } = useAuth();
   const { empresa } = useEmpresa();
   const [email, setEmail] = useState("");
+  const [clave, setClave] = useState("");
   const navigate = useNavigate();
   const logoUrl = resolverLogoUrl(empresa?.logo_url);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    await login(email);
+    await login(email, clave);
     navigate("/panel");
   }
 
@@ -37,6 +38,13 @@ export default function Login() {
           placeholder="correo@empresa.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+        />
+        <input
+          type="password"
+          required
+          placeholder="Clave"
+          value={clave}
+          onChange={(e) => setClave(e.target.value)}
         />
         {error && <p style={{ color: "crimson", fontSize: 13 }}>{error}</p>}
         <button className="boton" type="submit" disabled={cargando}>

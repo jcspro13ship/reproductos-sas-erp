@@ -19,11 +19,11 @@ export function AuthProvider({ children }) {
     else localStorage.removeItem(STORAGE_KEY);
   }, [sesion]);
 
-  async function login(email) {
+  async function login(email, clave) {
     setCargando(true);
     setError(null);
     try {
-      const data = await api.login(email);
+      const data = await api.login(email, clave);
       setSesion(data);
       return data;
     } catch (e) {

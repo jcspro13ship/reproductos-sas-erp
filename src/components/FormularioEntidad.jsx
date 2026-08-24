@@ -7,7 +7,8 @@ export default function FormularioEntidad({ sheet, campos, valores, onGuardado, 
     const inicial = {};
     campos.forEach((c) => {
       const valor = valores?.[c.key];
-      if (valor == null) {
+      if (valor == null || c.tipo === "clave") {
+        // La clave nunca se precarga en el formulario, ni siquiera al editar.
         inicial[c.key] = "";
       } else if (c.tipo === "porcentaje") {
         inicial[c.key] = String(Number(valor) * 100);
@@ -32,6 +33,8 @@ export default function FormularioEntidad({ sheet, campos, valores, onGuardado, 
       const payload = {};
       campos.forEach((c) => {
         const valor = datos[c.key];
+        // Clave en blanco al editar: no se manda, así no se sobreescribe la existente.
+        if (c.tipo === "clave" && esEdicion && valor === "") return;
         if (c.tipo === "numero") payload[c.key] = valor === "" ? 0 : Number(valor);
         else if (c.tipo === "porcentaje") payload[c.key] = valor === "" ? 0 : Number(valor) / 100;
         else payload[c.key] = valor;

@@ -1,7 +1,17 @@
+import { useEffect, useState } from "react";
+import { api } from "../../lib/api";
 import TablaGenerica from "../../components/TablaGenerica";
 import TablaEditable from "../../components/TablaEditable";
 
 export default function Configuracion() {
+  const [roles, setRoles] = useState([]);
+
+  useEffect(() => {
+    api.list("ROLES").then(setRoles);
+  }, []);
+
+  const opcionesRol = roles.map((r) => ({ value: r.id, label: r.nombre }));
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
       <TablaEditable
@@ -57,7 +67,7 @@ export default function Configuracion() {
         ]}
       />
 
-      <TablaGenerica
+      <TablaEditable
         titulo="Usuarios"
         sheet="USUARIOS"
         columnas={[
@@ -66,6 +76,22 @@ export default function Configuracion() {
           { key: "email", label: "Email" },
           { key: "rol_id", label: "Rol" },
           { key: "activo", label: "Activo" },
+        ]}
+        campos={[
+          { key: "nombre", label: "Nombre", tipo: "texto", requerido: true },
+          { key: "email", label: "Email", tipo: "texto", requerido: true },
+          { key: "clave", label: "Clave", tipo: "clave", ayuda: "Déjala en blanco al editar para no cambiarla" },
+          { key: "rol_id", label: "Rol", tipo: "select", opciones: opcionesRol, requerido: true },
+          {
+            key: "activo",
+            label: "Activo",
+            tipo: "select",
+            opciones: [
+              { value: "true", label: "Sí" },
+              { value: "false", label: "No" },
+            ],
+            requerido: true,
+          },
         ]}
       />
       <TablaGenerica

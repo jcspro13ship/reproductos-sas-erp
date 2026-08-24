@@ -7,7 +7,7 @@
 // GET  ?action=list&sheet=PRODUCTOS
 // GET  ?action=get&sheet=PRODUCTOS&id=p-1
 // POST { action: "create"|"update"|"delete", sheet, id, data }
-// POST { action: "login", data: { email } }
+// POST { action: "login", email, clave }
 // POST { action: "loginCliente", data: { usuario, clave } }
 // POST { action: "recibirCompra", data: { proveedor_id, fecha, estado, fecha_vencimiento,
 //        moneda, tasa_cambio, items: [{ producto_id, cantidad, costo_unitario }] } }
@@ -60,7 +60,7 @@ function doPost(e) {
       }
     }
     if (accion === 'login') {
-      return responder(login(body.email))
+      return responder(login(body.email, body.clave))
     }
     if (accion === 'loginCliente') {
       return responder(loginCliente(body.usuario, body.clave))
@@ -80,7 +80,7 @@ function doPost(e) {
   }
 }
 
-function login(email) {
+function login(email, clave) {
   if (!email) return { ok: false, error: 'Falta el correo' }
   var usuarios = leerTodo('USUARIOS')
   var usuario = usuarios.find(function (u) {
@@ -88,6 +88,9 @@ function login(email) {
   })
   if (!usuario || !esVerdadero(usuario.activo)) {
     return { ok: false, error: 'Usuario no encontrado o inactivo' }
+  }
+  if (!usuario.clave || String(usuario.clave) !== String(clave || '')) {
+    return { ok: false, error: 'Clave incorrecta' }
   }
   var roles = leerTodo('ROLES')
   var rol = roles.find(function (r) {
