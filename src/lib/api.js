@@ -37,6 +37,7 @@ export const api = {
   update: (sheet, id, data) => send("update", sheet, { id, data }),
   remove: (sheet, id) => send("delete", sheet, { id }),
   login: (email, clave) => send("login", "USUARIOS", { email, clave }),
+  cambiarClave: (email, claveActual, claveNueva) => send("cambiarClave", undefined, { email, claveActual, claveNueva }),
   loginCliente: (usuario, clave) => send("loginCliente", "CLIENTES", { usuario, clave }),
   recibirCompra: (data) => send("recibirCompra", undefined, { data }),
   registrarVenta: (data) => send("registrarVenta", undefined, { data }),

@@ -9,6 +9,7 @@
 // POST { action: "create"|"update"|"delete", sheet, id, data }
 // POST { action: "login", email, clave }
 // POST { action: "loginCliente", data: { usuario, clave } }
+// POST { action: "cambiarClave", email, claveActual, claveNueva }
 // POST { action: "recibirCompra", data: { proveedor_id, fecha, estado, fecha_vencimiento,
 //        moneda, tasa_cambio, items: [{ producto_id, cantidad, costo_unitario }] } }
 // POST { action: "registrarVenta", data: { cliente_id, vendedor_id, fecha, estado,
@@ -65,6 +66,9 @@ function doPost(e) {
     if (accion === 'loginCliente') {
       return responder(loginCliente(body.usuario, body.clave))
     }
+    if (accion === 'cambiarClave') {
+      return responder(cambiarClave(body.email, body.claveActual, body.claveNueva))
+    }
     if (accion === 'recibirCompra') {
       return responder({ ok: true, data: recibirCompra(body.data || {}) })
     }
@@ -99,6 +103,7 @@ function login(email, clave) {
   var permisos = leerTodo('PERMISOS_ROL').filter(function (p) {
     return String(p.rol_id) === String(usuario.rol_id)
   })
+  delete usuario.clave
   return { ok: true, data: { usuario: usuario, rol: rol, permisos: permisos } }
 }
 
@@ -111,6 +116,31 @@ function loginCliente(usuario, clave) {
   if (!cliente) return { ok: false, error: 'Usuario o clave incorrectos' }
   delete cliente.clave
   return { ok: true, data: cliente }
+}
+
+// El usuario cambia su propia clave: re-valida la clave actual contra la
+// guardada (no basta con estar "logueado" en el frontend, ya que este Web
+// App no tiene sesión de servidor) antes de escribir la nueva.
+function cambiarClave(email, claveActual, claveNueva) {
+  if (!email || !claveActual || !claveNueva) return { ok: false, error: 'Faltan datos' }
+  var lock = LockService.getScriptLock()
+  lock.waitLock(10000)
+  try {
+    var usuarios = leerTodo('USUARIOS')
+    var usuario = usuarios.find(function (u) {
+      return String(u.email).toLowerCase() === String(email).toLowerCase()
+    })
+    if (!usuario || !esVerdadero(usuario.activo)) {
+      return { ok: false, error: 'Usuario no encontrado o inactivo' }
+    }
+    if (!usuario.clave || String(usuario.clave) !== String(claveActual)) {
+      return { ok: false, error: 'Clave actual incorrecta' }
+    }
+    actualizarFila('USUARIOS', usuario.id, { clave: claveNueva })
+    return { ok: true, data: { cambiada: true } }
+  } finally {
+    lock.releaseLock()
+  }
 }
 
 // ---- Flujo de compras y ventas (ver ERP-configurable-estructura.md, secciones 4 y 5) ----

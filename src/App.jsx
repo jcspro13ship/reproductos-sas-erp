@@ -24,6 +24,7 @@ import Cartera from "./pages/panel/Cartera";
 import CatalogoPrecios from "./pages/panel/CatalogoPrecios";
 import Costos from "./pages/panel/Costos";
 import Configuracion from "./pages/panel/Configuracion";
+import CambiarClave from "./pages/panel/CambiarClave";
 import Onboarding from "./pages/onboarding/Onboarding";
 
 export default function App() {
@@ -61,6 +62,7 @@ export default function App() {
               <Route path="catalogo-precios" element={<CatalogoPrecios />} />
               <Route path="costos" element={<Costos />} />
               <Route path="configuracion" element={<Configuracion />} />
+              <Route path="cambiar-clave" element={<CambiarClave />} />
             </Route>
           </Routes>
         </CartProvider>

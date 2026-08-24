@@ -67,6 +67,9 @@ export default function PanelLayout() {
         </Link>
         <div style={{ marginTop: "auto", fontSize: 13, opacity: 0.8 }}>
           <div>{sesion?.usuario?.nombre}</div>
+          <Link to="/panel/cambiar-clave" style={{ display: "block", fontSize: 12, marginTop: 4 }}>
+            Cambiar mi clave
+          </Link>
           <button className="boton-secundario boton" style={{ marginTop: 8, width: "100%" }} onClick={handleLogout}>
             Cerrar sesión
           </button>
