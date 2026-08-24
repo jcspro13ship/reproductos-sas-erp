@@ -2,13 +2,13 @@ import { Link, Outlet, useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { useClienteAuth } from "../context/ClienteAuthContext";
 import { useEmpresa } from "../context/EmpresaContext";
-import { resolverLogoUrl } from "../lib/logo";
+import { resolverImagenDrive } from "../lib/imagenDrive";
 
 export default function PublicLayout() {
   const { items } = useCart();
   const { cliente, logout } = useClienteAuth();
   const { empresa } = useEmpresa();
-  const logoUrl = resolverLogoUrl(empresa?.logo_url);
+  const logoUrl = resolverImagenDrive(empresa?.logo_url);
   const navigate = useNavigate();
   const cantidadTotal = items.reduce((acc, i) => acc + i.cantidad, 0);
 

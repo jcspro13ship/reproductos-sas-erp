@@ -4,6 +4,7 @@ import { api } from "../../lib/api";
 import { fusionarPrecios, resolverListaPublica } from "../../lib/catalogo";
 import { useClienteAuth } from "../../context/ClienteAuthContext";
 import { useCart } from "../../context/CartContext";
+import { resolverImagenDrive } from "../../lib/imagenDrive";
 
 export default function ProductoDetalle() {
   const { id } = useParams();
@@ -39,6 +40,8 @@ export default function ProductoDetalle() {
   if (error) return <p style={{ color: "crimson" }}>{error}</p>;
   if (!producto) return <p>Producto no encontrado.</p>;
 
+  const imagenUrl = resolverImagenDrive(producto.imagen);
+
   function handleAgregar() {
     agregar(producto, cantidad);
     navigate("/carrito");
@@ -47,8 +50,8 @@ export default function ProductoDetalle() {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
       <div style={{ aspectRatio: "1 / 1", background: "#f4f4f4", borderRadius: "var(--radio)" }}>
-        {producto.imagen && (
-          <img src={producto.imagen} alt={producto.nombre} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "var(--radio)" }} />
+        {imagenUrl && (
+          <img src={imagenUrl} alt={producto.nombre} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "var(--radio)" }} />
         )}
       </div>
       <div>

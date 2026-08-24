@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useEmpresa } from "../../context/EmpresaContext";
-import { resolverLogoUrl } from "../../lib/logo";
+import { resolverImagenDrive } from "../../lib/imagenDrive";
 
 export default function Login() {
   const { login, cargando, error } = useAuth();
@@ -10,7 +10,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [clave, setClave] = useState("");
   const navigate = useNavigate();
-  const logoUrl = resolverLogoUrl(empresa?.logo_url);
+  const logoUrl = resolverImagenDrive(empresa?.logo_url);
 
   async function handleSubmit(e) {
     e.preventDefault();
