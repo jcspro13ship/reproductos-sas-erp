@@ -57,6 +57,14 @@ export default function PanelLayout() {
             {m.label}
           </Link>
         ))}
+        <Link
+          to="/catalogo"
+          target="_blank"
+          rel="noopener"
+          style={{ padding: "8px 10px", borderRadius: 6, textDecoration: "none", fontSize: 14, opacity: 0.75 }}
+        >
+          Ver catálogo público ↗
+        </Link>
         <div style={{ marginTop: "auto", fontSize: 13, opacity: 0.8 }}>
           <div>{sesion?.usuario?.nombre}</div>
           <button className="boton-secundario boton" style={{ marginTop: 8, width: "100%" }} onClick={handleLogout}>
