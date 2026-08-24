@@ -1,48 +1,48 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useCart } from "../../context/CartContext";
 import { useClienteAuth } from "../../context/ClienteAuthContext";
-import { api } from "../../lib/api";
 import { WHATSAPP_NUMERO } from "../../config";
-import { hoyDDMMAAAA } from "../../lib/fecha";
 
 export default function Carrito() {
   const { items, actualizarCantidad, quitar, vaciar, total } = useCart();
   const { cliente } = useClienteAuth();
+  const [nombre, setNombre] = useState(cliente?.nombre || "");
+  const [correo, setCorreo] = useState("");
+  const [telefono, setTelefono] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState(null);
 
-  async function enviarCotizacion() {
-    setEnviando(true);
+  function enviarPedido() {
     setError(null);
-    try {
-      const cotizacion = await api.create("COTIZACIONES", {
-        cliente_id: cliente?.id || "",
-        fecha: hoyDDMMAAAA(),
-        estado: "pendiente",
-      });
-      await Promise.all(
-        items.map((i) =>
-          api.create("COTIZACIONES_DETALLE", {
-            cotizacion_id: cotizacion.id,
-            producto_id: i.producto.id,
-            cantidad: i.cantidad,
-            precio_unitario: i.producto.precio,
-          })
-        )
-      );
-
-      const lineas = items.map((i) => `- ${i.producto.nombre} x${i.cantidad}`).join("%0A");
-      const mensaje = `Hola, quiero cotizar:%0A${lineas}%0A%0ATotal aprox: $${total.toLocaleString("es-CO")}%0ACotización #${cotizacion.id}`;
-      window.open(`https://wa.me/${WHATSAPP_NUMERO}?text=${mensaje}`, "_blank");
-      vaciar();
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setEnviando(false);
+    if (!nombre.trim()) {
+      setError("Escribe tu nombre para poder enviar el pedido");
+      return;
     }
+    if (!correo.trim() && !telefono.trim()) {
+      setError("Déjanos al menos un correo o un teléfono de contacto");
+      return;
+    }
+    setEnviando(true);
+    const lineas = items.map((i) => `- ${i.producto.nombre} x${i.cantidad}`).join("%0A");
+    const datosContacto = [`Nombre: ${nombre}`, correo && `Correo: ${correo}`, telefono && `Teléfono: ${telefono}`]
+      .filter(Boolean)
+      .join("%0A");
+    const mensaje = `Hola, quiero hacer un pedido:%0A${lineas}%0A%0ATotal aprox: $${total.toLocaleString("es-CO")}%0A%0A${datosContacto}`;
+    window.open(`https://wa.me/${WHATSAPP_NUMERO}?text=${mensaje}`, "_blank");
+    vaciar();
+    setEnviando(false);
   }
 
-  if (items.length === 0) return <p>Tu carrito está vacío.</p>;
+  if (items.length === 0)
+    return (
+      <div>
+        <p>Tu carrito está vacío.</p>
+        <Link to="/catalogo" className="boton" style={{ display: "inline-block", marginTop: 12, textDecoration: "none" }}>
+          Ver catálogo
+        </Link>
+      </div>
+    );
 
   return (
     <div>
@@ -84,9 +84,30 @@ export default function Carrito() {
       <p style={{ fontSize: 18, fontWeight: 600, marginTop: 16 }}>
         Total: ${total.toLocaleString("es-CO")}
       </p>
+
+      <Link to="/catalogo" style={{ display: "inline-block", marginBottom: 20, fontSize: 13 }}>
+        ← Seguir viendo productos
+      </Link>
+
+      <div style={{ maxWidth: 360, display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+        <strong style={{ fontSize: 14 }}>Tus datos de contacto</strong>
+        <label>
+          Nombre *
+          <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Tu nombre" />
+        </label>
+        <label>
+          Correo
+          <input type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} placeholder="tu@correo.com" />
+        </label>
+        <label>
+          Teléfono
+          <input value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="300 000 0000" />
+        </label>
+      </div>
+
       {error && <p style={{ color: "crimson" }}>{error}</p>}
-      <button className="boton" disabled={enviando} onClick={enviarCotizacion}>
-        {enviando ? "Enviando..." : "Enviar cotización por WhatsApp"}
+      <button className="boton" disabled={enviando} onClick={enviarPedido}>
+        {enviando ? "Enviando..." : "Enviar pedido por WhatsApp"}
       </button>
     </div>
   );

@@ -35,6 +35,12 @@ export default function Inventario() {
             tipo: "texto",
             ayuda: "Link normal de 'compartir' de Drive (debe estar en 'Cualquiera con el enlace') o de Imgur",
           },
+          {
+            key: "descripcion",
+            label: "Descripción",
+            tipo: "textoLargo",
+            ayuda: "Se muestra en el detalle del producto del catálogo público",
+          },
           { key: "iva_pct", label: "IVA", tipo: "porcentaje", ayuda: "0 para exento/excluido" },
           {
             key: "costo_promedio",

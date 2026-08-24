@@ -79,6 +79,13 @@ export default function FormularioEntidad({ sheet, campos, valores, onGuardado, 
                 </option>
               ))}
             </select>
+          ) : c.tipo === "textoLargo" ? (
+            <textarea
+              rows={3}
+              value={datos[c.key]}
+              onChange={(e) => set(c.key, e.target.value)}
+              required={c.requerido}
+            />
           ) : (
             <input
               type={c.tipo === "numero" || c.tipo === "porcentaje" ? "number" : c.tipo === "clave" ? "password" : "text"}
