@@ -2,13 +2,10 @@ import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { hoyDDMMAAAA } from "../../lib/fecha";
 import FilasItems from "../../components/FilasItems";
-import CotizacionImprimible from "../../components/CotizacionImprimible";
 import { useAuth } from "../../context/AuthContext";
-import { useEmpresa } from "../../context/EmpresaContext";
 
-export default function NuevaCotizacion({ onCreada }) {
+export default function NuevaCotizacion({ onGuardada }) {
   const { sesion } = useAuth();
-  const { empresa } = useEmpresa();
   const [clientes, setClientes] = useState([]);
   const [productos, setProductos] = useState([]);
   const [listas, setListas] = useState([]);
@@ -20,7 +17,7 @@ export default function NuevaCotizacion({ onCreada }) {
   const [items, setItems] = useState([{ producto_id: "", cantidad: 1, precio_unitario: 0 }]);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState(null);
-  const [guardada, setGuardada] = useState(null);
+  const [ultimoGuardadoId, setUltimoGuardadoId] = useState(null);
 
   useEffect(() => {
     Promise.all([api.list("CLIENTES"), api.list("PRODUCTOS"), api.list("LISTAS_PRECIO"), api.list("PRECIOS_PRODUCTO")])
@@ -36,7 +33,9 @@ export default function NuevaCotizacion({ onCreada }) {
 
   function precioPara(productoId, listaIdUsar) {
     if (!productoId || !listaIdUsar) return 0;
-    const fila = precios.find((pp) => pp.producto_id === productoId && pp.lista_id === listaIdUsar);
+    const fila = precios.find(
+      (pp) => String(pp.producto_id) === String(productoId) && String(pp.lista_id) === String(listaIdUsar)
+    );
     return fila ? Number(fila.precio) : 0;
   }
 
@@ -60,37 +59,42 @@ export default function NuevaCotizacion({ onCreada }) {
     try {
       const itemsValidos = items.filter((i) => i.producto_id);
       if (itemsValidos.length === 0) throw new Error("Agrega al menos un producto");
+
       const cotizacion = await api.create("COTIZACIONES", {
         cliente_id: clienteId,
         vendedor_id: sesion?.usuario?.id || "",
         fecha,
         estado: "pendiente",
+        lista_precio_id: listaId,
         notas,
       });
-      await Promise.all(
-        itemsValidos.map((i) =>
-          api.create("COTIZACIONES_DETALLE", {
-            cotizacion_id: cotizacion.id,
-            producto_id: i.producto_id,
-            cantidad: i.cantidad,
-            precio_unitario: i.precio_unitario,
-          })
-        )
-      );
-      setGuardada({
+
+      // Secuencial: Apps Script solo procesa una escritura a la vez (usa un
+      // candado por ejecución), así que mandar todas las filas en paralelo
+      // hace que se crucen y truene "tiempo de espera del candado agotado".
+      const detallesGuardados = [];
+      for (const i of itemsValidos) {
+        const detalle = await api.create("COTIZACIONES_DETALLE", {
+          cotizacion_id: cotizacion.id,
+          producto_id: i.producto_id,
+          cantidad: i.cantidad,
+          precio_unitario: i.precio_unitario,
+        });
+        detallesGuardados.push(detalle);
+      }
+
+      setUltimoGuardadoId(cotizacion.id);
+      onGuardada?.({
         cotizacion,
         cliente: clientes.find((c) => String(c.id) === String(clienteId)),
         lista: listas.find((l) => String(l.id) === String(listaId)),
         notas,
-        items: itemsValidos.map((i) => ({
-          ...i,
-          producto: productos.find((p) => String(p.id) === String(i.producto_id)),
-        })),
+        items: itemsValidos.map((i) => ({ ...i, producto: productos.find((p) => String(p.id) === String(i.producto_id)) })),
       });
+
       setClienteId("");
       setNotas("");
       setItems([{ producto_id: "", cantidad: 1, precio_unitario: 0 }]);
-      onCreada?.();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -161,24 +165,13 @@ export default function NuevaCotizacion({ onCreada }) {
         </button>
       </form>
 
-      {guardada && (
+      {ultimoGuardadoId && (
         <div className="no-print" style={{ marginTop: 12, padding: 12, borderRadius: "var(--radio)", background: "#f4f4f4", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <span style={{ fontSize: 13 }}>Cotización {guardada.cotizacion.id} guardada.</span>
+          <span style={{ fontSize: 13 }}>Cotización {ultimoGuardadoId} guardada.</span>
           <button className="boton-secundario boton" onClick={() => window.print()}>
             Imprimir / Descargar PDF
           </button>
         </div>
-      )}
-
-      {guardada && (
-        <CotizacionImprimible
-          empresa={empresa}
-          cotizacion={guardada.cotizacion}
-          cliente={guardada.cliente}
-          lista={guardada.lista}
-          items={guardada.items}
-          notas={guardada.notas}
-        />
       )}
     </div>
   );
