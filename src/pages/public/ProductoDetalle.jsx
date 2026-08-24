@@ -5,6 +5,7 @@ import { fusionarPrecios, resolverListaPublica } from "../../lib/catalogo";
 import { useClienteAuth } from "../../context/ClienteAuthContext";
 import { useCart } from "../../context/CartContext";
 import { resolverImagenDrive } from "../../lib/imagenDrive";
+import { compartirProducto } from "../../lib/compartir";
 
 export default function ProductoDetalle() {
   const { id } = useParams();
@@ -76,6 +77,9 @@ export default function ProductoDetalle() {
           />
           <button className="boton" onClick={handleAgregar}>
             Agregar al carrito
+          </button>
+          <button className="boton-secundario boton" onClick={() => compartirProducto(producto)}>
+            Compartir por WhatsApp
           </button>
         </div>
       </div>

@@ -87,3 +87,16 @@ select {
   border-radius: var(--radio);
   font-size: 14px;
 }
+
+.print-only {
+  display: none;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block;
+  }
+}

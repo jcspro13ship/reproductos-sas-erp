@@ -1,6 +1,7 @@
 import { useState } from "react";
 import TablaGenerica from "../../components/TablaGenerica";
 import NuevaVenta from "./NuevaVenta";
+import NuevaCotizacion from "./NuevaCotizacion";
 import CotizacionesTabla from "./CotizacionesTabla";
 
 export default function Ventas() {
@@ -8,6 +9,7 @@ export default function Ventas() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+      <NuevaCotizacion onCreada={() => setRefreshKey((k) => k + 1)} />
       <NuevaVenta onCreada={() => setRefreshKey((k) => k + 1)} />
       <CotizacionesTabla key={`cot-${refreshKey}`} onConvertida={() => setRefreshKey((k) => k + 1)} />
       <TablaGenerica

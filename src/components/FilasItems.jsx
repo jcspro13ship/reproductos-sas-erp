@@ -1,4 +1,4 @@
-export default function FilasItems({ items, productos, campoMonto, etiquetaMonto, onChange }) {
+export default function FilasItems({ items, productos, campoMonto, etiquetaMonto, onChange, onProductoChange }) {
   function actualizar(i, campo, valor) {
     onChange(items.map((it, idx) => (idx === i ? { ...it, [campo]: valor } : it)));
   }
@@ -17,7 +17,13 @@ export default function FilasItems({ items, productos, campoMonto, etiquetaMonto
         <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
           <label style={{ flex: 2 }}>
             Producto
-            <select value={item.producto_id} onChange={(e) => actualizar(i, "producto_id", e.target.value)}>
+            <select
+              value={item.producto_id}
+              onChange={(e) => {
+                actualizar(i, "producto_id", e.target.value);
+                onProductoChange?.(i, e.target.value);
+              }}
+            >
               <option value="">Selecciona...</option>
               {productos.map((p) => (
                 <option key={p.id} value={p.id}>

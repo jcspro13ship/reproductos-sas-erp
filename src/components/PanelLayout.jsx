@@ -35,6 +35,7 @@ export default function PanelLayout() {
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
       <aside
+        className="no-print"
         style={{
           width: 240,
           borderRight: "1px solid var(--color-borde)",
