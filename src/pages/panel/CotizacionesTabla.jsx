@@ -50,6 +50,7 @@ export default function CotizacionesTabla({ onConvertida, onVerImprimir }) {
         cliente_id: cotizacion.cliente_id,
         vendedor_id: sesion?.usuario?.id || "",
         fecha: cotizacion.fecha,
+        tipo_venta: cotizacion.tipo_venta || "",
         items,
       });
       await api.update("COTIZACIONES", cotizacion.id, { estado: "convertida" });

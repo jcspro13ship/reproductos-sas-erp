@@ -68,6 +68,26 @@ export default function Configuracion() {
       />
 
       <TablaEditable
+        titulo="Tipos de venta (comisión)"
+        sheet="TIPOS_VENTA"
+        columnas={[
+          { key: "id", label: "ID" },
+          { key: "nombre", label: "Nombre" },
+          { key: "comision_pct", label: "% Comisión" },
+        ]}
+        campos={[
+          { key: "nombre", label: "Nombre", tipo: "texto", requerido: true },
+          {
+            key: "comision_pct",
+            label: "Comisión",
+            tipo: "porcentaje",
+            requerido: true,
+            ayuda: "% de comisión sobre el total de la venta cuando se clasifica con este tipo",
+          },
+        ]}
+      />
+
+      <TablaEditable
         titulo="Usuarios"
         sheet="USUARIOS"
         columnas={[

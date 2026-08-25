@@ -10,8 +10,10 @@ export default function NuevaCotizacion({ onGuardada }) {
   const [productos, setProductos] = useState([]);
   const [listas, setListas] = useState([]);
   const [precios, setPrecios] = useState([]);
+  const [tiposVenta, setTiposVenta] = useState([]);
   const [clienteId, setClienteId] = useState("");
   const [listaId, setListaId] = useState("");
+  const [tipoVenta, setTipoVenta] = useState("");
   const [fecha, setFecha] = useState(hoyDDMMAAAA());
   const [notas, setNotas] = useState("");
   const [items, setItems] = useState([{ producto_id: "", cantidad: 1, precio_unitario: 0 }]);
@@ -20,12 +22,19 @@ export default function NuevaCotizacion({ onGuardada }) {
   const [ultimoGuardadoId, setUltimoGuardadoId] = useState(null);
 
   useEffect(() => {
-    Promise.all([api.list("CLIENTES"), api.list("PRODUCTOS"), api.list("LISTAS_PRECIO"), api.list("PRECIOS_PRODUCTO")])
-      .then(([c, p, l, pr]) => {
+    Promise.all([
+      api.list("CLIENTES"),
+      api.list("PRODUCTOS"),
+      api.list("LISTAS_PRECIO"),
+      api.list("PRECIOS_PRODUCTO"),
+      api.list("TIPOS_VENTA"),
+    ])
+      .then(([c, p, l, pr, tv]) => {
         setClientes(c);
         setProductos(p);
         setListas(l);
         setPrecios(pr);
+        setTiposVenta(tv);
         if (l[0]) setListaId(l[0].id);
       })
       .catch((e) => setError(e.message));
@@ -66,6 +75,7 @@ export default function NuevaCotizacion({ onGuardada }) {
         fecha,
         estado: "pendiente",
         lista_precio_id: listaId,
+        tipo_venta: tipoVenta,
         notas,
       });
 
@@ -93,6 +103,7 @@ export default function NuevaCotizacion({ onGuardada }) {
       });
 
       setClienteId("");
+      setTipoVenta("");
       setNotas("");
       setItems([{ producto_id: "", cantidad: 1, precio_unitario: 0 }]);
     } catch (e) {
@@ -137,6 +148,17 @@ export default function NuevaCotizacion({ onGuardada }) {
           <label style={{ width: 140 }}>
             Fecha
             <input value={fecha} onChange={(e) => setFecha(e.target.value)} placeholder="DD-MM-AAAA" />
+          </label>
+          <label style={{ width: 160 }}>
+            Tipo de venta
+            <select value={tipoVenta} onChange={(e) => setTipoVenta(e.target.value)} required>
+              <option value="">Selecciona...</option>
+              {tiposVenta.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.nombre} ({(Number(t.comision_pct) * 100).toFixed(0)}%)
+                </option>
+              ))}
+            </select>
           </label>
         </div>
         <FilasItems

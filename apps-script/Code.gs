@@ -223,14 +223,15 @@ function registrarVenta(datos) {
       estado: datos.estado || 'cerrada',
       moneda: datos.moneda || '',
       tasa_cambio: tasaCambio,
+      tipo_venta: datos.tipo_venta || '',
     })
 
-    var lineas = leerTodo('LINEAS')
-    // El precio de cada línea llega en la moneda de la venta; comisión y CxC se
-    // calculan convertidos a moneda_base (con la tasa congelada en esta venta)
-    // para que el vendedor siempre cobre en la moneda local del negocio.
+    // El precio de cada línea llega en la moneda de la venta; CxC se calcula
+    // convertida a moneda_base (con la tasa congelada en esta venta) para que
+    // sea comparable. La comisión NO se calcula por línea de producto: depende
+    // del tipo_venta de la venta completa (ver TIPOS_VENTA), un % único sobre
+    // el total, configurable desde el Sheet sin tocar este código.
     var totalVentaBase = 0
-    var totalComisionBase = 0
     var detalles = (datos.items || []).map(function (item) {
       var detalle = crearFila('VENTAS_DETALLE', {
         venta_id: venta.id,
@@ -261,14 +262,15 @@ function registrarVenta(datos) {
       var subtotalBase = cantidadVendida * Number(item.precio_unitario) * tasaCambio
       totalVentaBase += subtotalBase
 
-      var linea = lineas.find(function (l) {
-        return String(l.id) === String(producto.linea_id)
-      })
-      var pctComision = linea ? Number(linea.comision_default_pct) || 0 : 0
-      totalComisionBase += subtotalBase * pctComision
-
       return detalle
     })
+
+    var tiposVenta = leerTodo('TIPOS_VENTA')
+    var tipoVenta = tiposVenta.find(function (t) {
+      return String(t.id) === String(datos.tipo_venta)
+    })
+    var pctComision = tipoVenta ? Number(tipoVenta.comision_pct) || 0 : 0
+    var totalComisionBase = totalVentaBase * pctComision
 
     var comision = crearFila('COMISIONES', {
       venta_id: venta.id,

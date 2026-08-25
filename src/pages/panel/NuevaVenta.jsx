@@ -15,19 +15,22 @@ export default function NuevaVenta({ onCreada }) {
   const [fecha, setFecha] = useState(hoyDDMMAAAA());
   const [moneda, setMoneda] = useState("COP");
   const [tasaCambio, setTasaCambio] = useState(1);
+  const [tipoVenta, setTipoVenta] = useState("");
+  const [tiposVenta, setTiposVenta] = useState([]);
   const [items, setItems] = useState([{ producto_id: "", cantidad: 1, precio_unitario: 0 }]);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    Promise.all([api.list("CLIENTES"), api.list("PRODUCTOS"), api.list("EMPRESA"), api.list("TASAS_CAMBIO")])
-      .then(([c, p, empresa, tasasCambio]) => {
+    Promise.all([api.list("CLIENTES"), api.list("PRODUCTOS"), api.list("EMPRESA"), api.list("TASAS_CAMBIO"), api.list("TIPOS_VENTA")])
+      .then(([c, p, empresa, tasasCambio, tv]) => {
         setClientes(c);
         setProductos(p);
         const base = empresa[0]?.moneda_base || "COP";
         setMonedaBase(base);
         setMoneda(base);
         setTasas(tasasCambio);
+        setTiposVenta(tv);
       })
       .catch((e) => setError(e.message));
   }, []);
@@ -43,11 +46,13 @@ export default function NuevaVenta({ onCreada }) {
         fecha,
         moneda,
         tasa_cambio: tasaCambio,
+        tipo_venta: tipoVenta,
         items: items.filter((i) => i.producto_id),
       });
       setClienteId("");
       setMoneda(monedaBase);
       setTasaCambio(1);
+      setTipoVenta("");
       setItems([{ producto_id: "", cantidad: 1, precio_unitario: 0 }]);
       onCreada?.();
     } catch (e) {
@@ -78,6 +83,17 @@ export default function NuevaVenta({ onCreada }) {
         <label style={{ width: 140 }}>
           Fecha
           <input value={fecha} onChange={(e) => setFecha(e.target.value)} placeholder="DD-MM-AAAA" />
+        </label>
+        <label style={{ width: 160 }}>
+          Tipo de venta
+          <select value={tipoVenta} onChange={(e) => setTipoVenta(e.target.value)} required>
+            <option value="">Selecciona...</option>
+            {tiposVenta.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.nombre} ({(Number(t.comision_pct) * 100).toFixed(0)}%)
+              </option>
+            ))}
+          </select>
         </label>
         <SelectorMoneda
           monedaBase={monedaBase}
