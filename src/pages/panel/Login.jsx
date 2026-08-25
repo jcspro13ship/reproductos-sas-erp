@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useEmpresa } from "../../context/EmpresaContext";
 import { resolverImagenDrive } from "../../lib/imagenDrive";
@@ -51,9 +51,6 @@ export default function Login() {
           {cargando ? "Ingresando..." : "Ingresar"}
         </button>
       </form>
-      <Link to="/onboarding" style={{ display: "block", marginTop: 16, fontSize: 12, opacity: 0.6 }}>
-        Onboarding de nuevo cliente (interno JCS)
-      </Link>
     </div>
   );
 }
