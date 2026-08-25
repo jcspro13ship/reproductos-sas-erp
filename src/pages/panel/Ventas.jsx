@@ -1,22 +1,32 @@
 import { useState } from "react";
-import TablaGenerica from "../../components/TablaGenerica";
 import NuevaVenta from "./NuevaVenta";
 import NuevaCotizacion from "./NuevaCotizacion";
 import CotizacionesTabla from "./CotizacionesTabla";
+import VentasTabla from "./VentasTabla";
 import CotizacionImprimible from "../../components/CotizacionImprimible";
+import VentaImprimible from "../../components/VentaImprimible";
 import { useEmpresa } from "../../context/EmpresaContext";
 
 export default function Ventas() {
   const { empresa } = useEmpresa();
   const [refreshKey, setRefreshKey] = useState(0);
-  const [paraImprimir, setParaImprimir] = useState(null);
+  const [cotizacionParaImprimir, setCotizacionParaImprimir] = useState(null);
+  const [ventaParaImprimir, setVentaParaImprimir] = useState(null);
 
-  function mostrarImprimible(datos) {
-    setParaImprimir(datos);
+  function mostrarCotizacion(datos) {
+    setVentaParaImprimir(null);
+    setCotizacionParaImprimir(datos);
   }
 
-  function verImprimir(datos) {
-    setParaImprimir(datos);
+  function verImprimirCotizacion(datos) {
+    setVentaParaImprimir(null);
+    setCotizacionParaImprimir(datos);
+    setTimeout(() => window.print(), 300);
+  }
+
+  function verImprimirVenta(datos) {
+    setCotizacionParaImprimir(null);
+    setVentaParaImprimir(datos);
     setTimeout(() => window.print(), 300);
   }
 
@@ -24,7 +34,7 @@ export default function Ventas() {
     <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
       <NuevaCotizacion
         onGuardada={(datos) => {
-          mostrarImprimible(datos);
+          mostrarCotizacion(datos);
           setRefreshKey((k) => k + 1);
         }}
       />
@@ -33,32 +43,28 @@ export default function Ventas() {
         <CotizacionesTabla
           key={`cot-${refreshKey}`}
           onConvertida={() => setRefreshKey((k) => k + 1)}
-          onVerImprimir={verImprimir}
+          onVerImprimir={verImprimirCotizacion}
         />
-        <TablaGenerica
-          key={`ven-${refreshKey}`}
-          titulo="Ventas"
-          sheet="VENTAS"
-          columnas={[
-            { key: "id", label: "N.°" },
-            { key: "cliente_id", label: "Cliente" },
-            { key: "vendedor_id", label: "Vendedor" },
-            { key: "fecha", label: "Fecha" },
-            { key: "numero_factura", label: "N.° factura" },
-            { key: "fecha_vencimiento", label: "Vence" },
-            { key: "estado", label: "Estado" },
-          ]}
-        />
+        <VentasTabla key={`ven-${refreshKey}`} onVerImprimir={verImprimirVenta} />
       </div>
 
-      {paraImprimir && (
+      {cotizacionParaImprimir && (
         <CotizacionImprimible
           empresa={empresa}
-          cotizacion={paraImprimir.cotizacion}
-          cliente={paraImprimir.cliente}
-          lista={paraImprimir.lista}
-          items={paraImprimir.items}
-          notas={paraImprimir.notas}
+          cotizacion={cotizacionParaImprimir.cotizacion}
+          cliente={cotizacionParaImprimir.cliente}
+          lista={cotizacionParaImprimir.lista}
+          items={cotizacionParaImprimir.items}
+          notas={cotizacionParaImprimir.notas}
+        />
+      )}
+
+      {ventaParaImprimir && (
+        <VentaImprimible
+          empresa={empresa}
+          venta={ventaParaImprimir.venta}
+          cliente={ventaParaImprimir.cliente}
+          items={ventaParaImprimir.items}
         />
       )}
     </div>
