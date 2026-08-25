@@ -10,11 +10,14 @@
 // POST { action: "login", email, clave }
 // POST { action: "loginCliente", data: { usuario, clave } }
 // POST { action: "cambiarClave", email, claveActual, claveNueva }
-// POST { action: "recibirCompra", data: { proveedor_id, fecha, estado, fecha_vencimiento,
-//        moneda, tasa_cambio, items: [{ producto_id, cantidad, costo_unitario }] } }
-// POST { action: "registrarVenta", data: { cliente_id, vendedor_id, fecha, estado,
-//        fecha_vencimiento, moneda, tasa_cambio, items: [{ producto_id, cantidad, precio_unitario }] } }
+// POST { action: "recibirCompra", data: { proveedor_id, fecha, estado, numero_factura, plazo_dias,
+//        fecha_vencimiento, moneda, tasa_cambio, items: [{ producto_id, cantidad, costo_unitario }] } }
+// POST { action: "registrarVenta", data: { cliente_id, vendedor_id, fecha, estado, numero_factura,
+//        plazo_dias, fecha_vencimiento, pagada, moneda, tasa_cambio,
+//        items: [{ producto_id, cantidad, precio_unitario }] } }
 // moneda/tasa_cambio son opcionales: si se omiten, se asume tasa_cambio=1 (ya en moneda_base).
+// pagada=true registra de una vez el cobro completo (evita el paso aparte en Cartera).
+// El id de VENTAS es un consecutivo alfanumérico (RP001, RP002...), ver generarConsecutivoVenta().
 // POST { action: "registrarPago", data: { referencia_tipo: "cxc"|"cxp", referencia_id, monto, fecha } }
 
 function doGet(e) {
@@ -156,6 +159,9 @@ function recibirCompra(datos) {
       estado: datos.estado || 'recibida',
       moneda: datos.moneda || '',
       tasa_cambio: tasaCambio,
+      numero_factura: datos.numero_factura || '',
+      plazo_dias: datos.plazo_dias || '',
+      fecha_vencimiento: datos.fecha_vencimiento || '',
     })
 
     // El costo de cada línea llega en la moneda de la compra; se convierte a
@@ -217,6 +223,7 @@ function registrarVenta(datos) {
   try {
     var tasaCambio = Number(datos.tasa_cambio) || 1
     var venta = crearFila('VENTAS', {
+      id: generarConsecutivoVenta(),
       cliente_id: datos.cliente_id,
       vendedor_id: datos.vendedor_id,
       fecha: datos.fecha,
@@ -224,6 +231,9 @@ function registrarVenta(datos) {
       moneda: datos.moneda || '',
       tasa_cambio: tasaCambio,
       tipo_venta: datos.tipo_venta || '',
+      numero_factura: datos.numero_factura || '',
+      plazo_dias: datos.plazo_dias || '',
+      fecha_vencimiento: datos.fecha_vencimiento || '',
     })
 
     // El precio de cada línea llega en la moneda de la venta; CxC se calcula
@@ -286,10 +296,37 @@ function registrarVenta(datos) {
       fecha_vencimiento: datos.fecha_vencimiento || '',
     })
 
-    return { venta: venta, detalles: detalles, comision: comision, cxc: cxc }
+    // Si la venta ya se cobró al momento de registrarla, se salda la CxC de una
+    // vez y se deja el PAGOS correspondiente, para no tener que ir aparte a Cartera.
+    var pago = null
+    if (datos.pagada) {
+      actualizarFila('CXC', cxc.id, { saldo: 0 })
+      cxc.saldo = 0
+      pago = crearFila('PAGOS', {
+        referencia_tipo: 'cxc',
+        referencia_id: cxc.id,
+        monto: totalVentaBase,
+        fecha: datos.fecha,
+      })
+    }
+
+    return { venta: venta, detalles: detalles, comision: comision, cxc: cxc, pago: pago }
   } finally {
     lock.releaseLock()
   }
+}
+
+// Consecutivo alfanumérico de venta (RP001, RP002...), independiente del id
+// aleatorio que usan las demás pestañas. Se calcula dentro del candado de
+// registrarVenta, así que no hay riesgo de dos ventas peleando por el mismo número.
+function generarConsecutivoVenta() {
+  var ventas = leerTodo('VENTAS')
+  var maxNumero = 0
+  ventas.forEach(function (v) {
+    var coincide = String(v.id).match(/^RP(\d+)$/)
+    if (coincide) maxNumero = Math.max(maxNumero, parseInt(coincide[1], 10))
+  })
+  return 'RP' + String(maxNumero + 1).padStart(3, '0')
 }
 
 // Cobro (referencia_tipo=cxc) o pago (referencia_tipo=cxp) real de caja: descuenta

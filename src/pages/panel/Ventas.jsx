@@ -40,10 +40,12 @@ export default function Ventas() {
           titulo="Ventas"
           sheet="VENTAS"
           columnas={[
-            { key: "id", label: "ID" },
+            { key: "id", label: "N.°" },
             { key: "cliente_id", label: "Cliente" },
             { key: "vendedor_id", label: "Vendedor" },
             { key: "fecha", label: "Fecha" },
+            { key: "numero_factura", label: "N.° factura" },
+            { key: "fecha_vencimiento", label: "Vence" },
             { key: "estado", label: "Estado" },
           ]}
         />

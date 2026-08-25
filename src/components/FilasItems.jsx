@@ -37,8 +37,9 @@ export default function FilasItems({ items, productos, campoMonto, etiquetaMonto
             <input
               type="number"
               min="1"
-              value={item.cantidad}
-              onChange={(e) => actualizar(i, "cantidad", Number(e.target.value))}
+              value={item.cantidad === 0 ? "" : item.cantidad}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => actualizar(i, "cantidad", e.target.value === "" ? 0 : Number(e.target.value))}
             />
           </label>
           <label style={{ width: 120 }}>
@@ -46,8 +47,9 @@ export default function FilasItems({ items, productos, campoMonto, etiquetaMonto
             <input
               type="number"
               min="0"
-              value={item[campoMonto]}
-              onChange={(e) => actualizar(i, campoMonto, Number(e.target.value))}
+              value={item[campoMonto] === 0 ? "" : item[campoMonto]}
+              onFocus={(e) => e.target.select()}
+              onChange={(e) => actualizar(i, campoMonto, e.target.value === "" ? 0 : Number(e.target.value))}
             />
           </label>
           {items.length > 1 && (

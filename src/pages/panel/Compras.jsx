@@ -16,6 +16,8 @@ export default function Compras() {
           { key: "id", label: "ID" },
           { key: "proveedor_id", label: "Proveedor" },
           { key: "fecha", label: "Fecha" },
+          { key: "numero_factura", label: "N.° factura" },
+          { key: "fecha_vencimiento", label: "Vence" },
           { key: "estado", label: "Estado" },
         ]}
       />
