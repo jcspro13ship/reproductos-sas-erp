@@ -19,6 +19,9 @@
 // pagada=true registra de una vez el cobro completo (evita el paso aparte en Cartera).
 // El id de VENTAS es un consecutivo alfanumérico (RP001, RP002...), ver generarConsecutivoVenta().
 // POST { action: "registrarPago", data: { referencia_tipo: "cxc"|"cxp", referencia_id, monto, fecha } }
+// POST { action: "marcarComisionPagada", data: { venta_id } }
+// COMISIONES no tiene columna id (por eso no se puede usar el update/delete genérico ahí);
+// esta acción ubica la fila por venta_id directamente.
 
 function doGet(e) {
   try {
@@ -80,6 +83,9 @@ function doPost(e) {
     }
     if (accion === 'registrarPago') {
       return responder(registrarPago(body.data || {}))
+    }
+    if (accion === 'marcarComisionPagada') {
+      return responder(marcarComisionPagada(body.data || {}))
     }
     return responder({ ok: false, error: 'Acción POST no reconocida: ' + accion })
   } catch (err) {
@@ -353,6 +359,38 @@ function registrarPago(datos) {
     })
 
     return { ok: true, data: { pago: pago, saldo: nuevoSaldo } }
+  } finally {
+    lock.releaseLock()
+  }
+}
+
+// COMISIONES no tiene columna id (para poder crear varias filas por venta en el futuro
+// sin depender de un identificador único), así que no se puede ubicar la fila con
+// ubicarNumeroFila(). En cambio, venta_id es único por comisión (una por venta), así
+// que se busca por ahí directamente.
+function marcarComisionPagada(datos) {
+  var lock = LockService.getScriptLock()
+  lock.waitLock(10000)
+  try {
+    var hoja = obtenerHoja('COMISIONES')
+    var encabezados = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0]
+    var indiceVenta = encabezados.indexOf('venta_id')
+    var indiceEstado = encabezados.indexOf('estado_pago')
+    if (indiceVenta === -1 || indiceEstado === -1) {
+      return { ok: false, error: 'COMISIONES no tiene las columnas venta_id/estado_pago' }
+    }
+    var valores = hoja.getRange(2, 1, Math.max(hoja.getLastRow() - 1, 0), encabezados.length).getValues()
+    for (var i = 0; i < valores.length; i++) {
+      if (String(valores[i][indiceVenta]) === String(datos.venta_id)) {
+        hoja.getRange(i + 2, indiceEstado + 1).setValue('pagada')
+        var actualizado = {}
+        encabezados.forEach(function (h, idx) {
+          actualizado[h] = idx === indiceEstado ? 'pagada' : valores[i][idx]
+        })
+        return { ok: true, data: actualizado }
+      }
+    }
+    return { ok: false, error: 'No se encontró comisión para la venta ' + datos.venta_id }
   } finally {
     lock.releaseLock()
   }

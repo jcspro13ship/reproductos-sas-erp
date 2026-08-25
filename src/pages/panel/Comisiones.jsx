@@ -17,6 +17,7 @@ export default function Comisiones() {
   const [error, setError] = useState(null);
   const [mes, setMes] = useState("");
   const [vendedorId, setVendedorId] = useState("");
+  const [marcando, setMarcando] = useState(null);
 
   useEffect(() => {
     Promise.all([api.list("COMISIONES"), api.list("VENTAS"), api.list("USUARIOS")])
@@ -31,6 +32,19 @@ export default function Comisiones() {
 
   function nombreVendedor(vendedorId) {
     return usuarios.find((u) => String(u.id) === String(vendedorId))?.nombre || vendedorId || "Sin asignar";
+  }
+
+  async function marcarPagada(ventaId) {
+    setMarcando(ventaId);
+    setError(null);
+    try {
+      await api.marcarComisionPagada(ventaId);
+      setComisiones((cs) => cs.map((c) => (String(c.venta_id) === String(ventaId) ? { ...c, estado_pago: "pagada" } : c)));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setMarcando(null);
+    }
   }
 
   const filas = useMemo(() => {
@@ -117,6 +131,7 @@ export default function Comisiones() {
                   <th>Vendedor</th>
                   <th>Valor</th>
                   <th>Estado de pago</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -127,6 +142,17 @@ export default function Comisiones() {
                     <td>{nombreVendedor(f.vendedor_id)}</td>
                     <td>{formatoMoneda(f.valor_comision)}</td>
                     <td>{f.estado_pago}</td>
+                    <td>
+                      {f.estado_pago !== "pagada" && (
+                        <button
+                          className="boton-secundario boton"
+                          disabled={marcando === f.venta_id}
+                          onClick={() => marcarPagada(f.venta_id)}
+                        >
+                          {marcando === f.venta_id ? "Guardando..." : "Marcar como pagada"}
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -136,6 +162,7 @@ export default function Comisiones() {
                     Total{mes ? ` (${mes})` : ""}
                   </td>
                   <td style={{ fontWeight: 600 }}>{formatoMoneda(totalPeriodo)}</td>
+                  <td></td>
                   <td></td>
                 </tr>
               </tfoot>
