@@ -8,10 +8,13 @@ import {
   porVencerEnDias,
   productosEnNegativo,
   resumenCartera,
+  topProductosVendidos,
   ventasDelMes,
+  ventasPorMes,
 } from "../../lib/tablero";
 import { flujoDeCajaDelMes } from "../../lib/caja";
 import KpiCard from "../../components/KpiCard";
+import GraficoBarras from "../../components/GraficoBarras";
 
 export default function Dashboard() {
   const { sesion, hasAccess } = useAuth();
@@ -63,6 +66,7 @@ export default function Dashboard() {
             ventas={ventas}
             ventasDetalle={ventasDetalle}
             comisiones={comisiones}
+            productos={productos}
             usuarioId={usuarioId}
             soloPropias={soloMisVentas}
           />
@@ -85,8 +89,12 @@ export default function Dashboard() {
   );
 }
 
-function BloqueVentas({ ventas, ventasDetalle, comisiones, usuarioId, soloPropias }) {
-  const resumen = ventasDelMes(ventas, ventasDetalle, { vendedorId: soloPropias ? usuarioId : undefined });
+function BloqueVentas({ ventas, ventasDetalle, comisiones, productos, usuarioId, soloPropias }) {
+  const vendedorId = soloPropias ? usuarioId : undefined;
+  const resumen = ventasDelMes(ventas, ventasDetalle, { vendedorId });
+  const porMes = ventasPorMes(ventas, ventasDetalle, { vendedorId });
+  const topProductos = topProductosVendidos(ventas, ventasDetalle, productos, { vendedorId });
+
   return (
     <section>
       <strong style={{ fontSize: 14 }}>{soloPropias ? "Mi desempeño" : "Ventas"}</strong>
@@ -96,6 +104,21 @@ function BloqueVentas({ ventas, ventasDetalle, comisiones, usuarioId, soloPropia
         {soloPropias && (
           <KpiCard etiqueta="Mi comisión pendiente" valor={formatoMoneda(comisionPendiente(comisiones, usuarioId))} />
         )}
+      </div>
+
+      <div style={{ display: "flex", gap: 24, marginTop: 20, flexWrap: "wrap" }}>
+        <div style={{ flex: 2, minWidth: 320, border: "1px solid var(--color-borde)", borderRadius: "var(--radio)", padding: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+            {soloPropias ? "Mis ventas — últimos 6 meses" : "Ventas — últimos 6 meses"}
+          </div>
+          <GraficoBarras datos={porMes} formatoValor={formatoMoneda} />
+        </div>
+        <div style={{ flex: 1, minWidth: 280, border: "1px solid var(--color-borde)", borderRadius: "var(--radio)", padding: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+            {soloPropias ? "Mis productos más vendidos" : "Top productos vendidos"}
+          </div>
+          <GraficoBarras datos={topProductos} formatoValor={(v) => `${v} und`} horizontal />
+        </div>
       </div>
     </section>
   );
