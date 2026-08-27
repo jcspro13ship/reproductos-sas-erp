@@ -3,6 +3,7 @@ import { api } from "../../lib/api";
 import { hoyDDMMAAAA, sumarDias } from "../../lib/fecha";
 import FilasItems from "../../components/FilasItems";
 import SelectorMoneda from "../../components/SelectorMoneda";
+import BuscadorSelect from "../../components/BuscadorSelect";
 import { useAuth } from "../../context/AuthContext";
 
 export default function NuevaVenta({ onCreada }) {
@@ -134,14 +135,13 @@ export default function NuevaVenta({ onCreada }) {
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <label style={{ flex: 1, minWidth: 180 }}>
             Cliente
-            <select value={clienteId} onChange={(e) => setClienteId(e.target.value)} required>
-              <option value="">Selecciona...</option>
-              {clientes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nombre}
-                </option>
-              ))}
-            </select>
+            <BuscadorSelect
+              opciones={clientes.map((c) => ({ value: c.id, label: c.nombre }))}
+              value={clienteId}
+              onChange={setClienteId}
+              placeholder="Escribe el nombre del cliente..."
+              required
+            />
           </label>
           <label style={{ width: 200 }}>
             Lista de precio

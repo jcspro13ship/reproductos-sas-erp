@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import TablaEditable from "../../components/TablaEditable";
+import NuevoProducto from "./NuevoProducto";
 
 export default function Inventario() {
   const [lineas, setLineas] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   function cargarLineas() {
     api.list("LINEAS").then(setLineas);
@@ -15,9 +17,12 @@ export default function Inventario() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 40 }}>
+      <NuevoProducto onCreado={() => setRefreshKey((k) => k + 1)} />
       <TablaEditable
+        key={refreshKey}
         titulo="Productos"
         sheet="PRODUCTOS"
+        permitirCrear={false}
         columnas={[
           { key: "id", label: "ID" },
           { key: "nombre", label: "Producto" },
@@ -25,10 +30,25 @@ export default function Inventario() {
           { key: "iva_pct", label: "IVA" },
           { key: "costo_promedio", label: "Costo promedio" },
           { key: "stock_actual", label: "Stock" },
+          {
+            key: "visible_catalogo",
+            label: "Visible en catálogo",
+            render: (fila) => (String(fila.visible_catalogo) === "false" ? "No" : "Sí"),
+          },
         ]}
         campos={[
           { key: "nombre", label: "Nombre", tipo: "texto", requerido: true },
           { key: "linea_id", label: "Línea", tipo: "select", opciones: opcionesLinea, requerido: true },
+          {
+            key: "visible_catalogo",
+            label: "Visible en catálogo",
+            tipo: "select",
+            opciones: [
+              { value: "true", label: "Sí" },
+              { value: "false", label: "No" },
+            ],
+            ayuda: "Si lo pones en 'No', deja de verse en el catálogo público, pero sigue disponible para compras y ventas.",
+          },
           {
             key: "imagen",
             label: "Foto (link de Drive o Imgur)",

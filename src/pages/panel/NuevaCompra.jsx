@@ -3,6 +3,7 @@ import { api } from "../../lib/api";
 import { hoyDDMMAAAA, sumarDias } from "../../lib/fecha";
 import FilasItems from "../../components/FilasItems";
 import SelectorMoneda from "../../components/SelectorMoneda";
+import BuscadorSelect from "../../components/BuscadorSelect";
 
 export default function NuevaCompra({ onCreada }) {
   const [proveedores, setProveedores] = useState([]);
@@ -86,14 +87,13 @@ export default function NuevaCompra({ onCreada }) {
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <label style={{ flex: 1, minWidth: 180 }}>
             Proveedor
-            <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)} required>
-              <option value="">Selecciona...</option>
-              {proveedores.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nombre}
-                </option>
-              ))}
-            </select>
+            <BuscadorSelect
+              opciones={proveedores.map((p) => ({ value: p.id, label: p.nombre }))}
+              value={proveedorId}
+              onChange={setProveedorId}
+              placeholder="Escribe el nombre del proveedor..."
+              required
+            />
           </label>
           <label style={{ width: 140 }}>
             Fecha

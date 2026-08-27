@@ -3,7 +3,7 @@ import { api } from "../lib/api";
 import { descargarCSV, filasACSV } from "../lib/csv";
 import FormularioEntidad from "./FormularioEntidad";
 
-export default function TablaEditable({ sheet, titulo, columnas, campos, onGuardado }) {
+export default function TablaEditable({ sheet, titulo, columnas, campos, onGuardado, permitirCrear = true }) {
   const [filas, setFilas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
@@ -43,9 +43,11 @@ export default function TablaEditable({ sheet, titulo, columnas, campos, onGuard
               Exportar CSV
             </button>
           )}
-          <button className="boton" onClick={() => setEditando({})}>
-            + Nuevo
-          </button>
+          {permitirCrear && (
+            <button className="boton" onClick={() => setEditando({})}>
+              + Nuevo
+            </button>
+          )}
         </div>
       </div>
 
@@ -78,7 +80,15 @@ export default function TablaEditable({ sheet, titulo, columnas, campos, onGuard
             {filas.map((fila) => (
               <tr key={fila.id}>
                 {columnas.map((c) => (
-                  <td key={c.key}>{typeof fila[c.key] === "boolean" ? (fila[c.key] ? "Sí" : "No") : fila[c.key]}</td>
+                  <td key={c.key}>
+                    {c.render
+                      ? c.render(fila)
+                      : typeof fila[c.key] === "boolean"
+                        ? fila[c.key]
+                          ? "Sí"
+                          : "No"
+                        : fila[c.key]}
+                  </td>
                 ))}
                 <td>
                   <button className="boton-secundario boton" onClick={() => setEditando(fila)}>

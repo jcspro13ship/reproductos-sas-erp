@@ -1,6 +1,6 @@
 import { resolverImagenDrive } from "../lib/imagenDrive";
 
-export default function CotizacionImprimible({ empresa, cotizacion, cliente, lista, items, notas }) {
+export default function CotizacionImprimible({ empresa, cotizacion, cliente, lista, items, notas, totalUsd }) {
   const logoUrl = resolverImagenDrive(empresa?.logo_url);
   const total = items.reduce((s, i) => s + (Number(i.cantidad) || 0) * (Number(i.precio_unitario) || 0), 0);
   const moneda = lista?.moneda || empresa?.moneda_base || "COP";
@@ -58,9 +58,17 @@ export default function CotizacionImprimible({ empresa, cotizacion, cliente, lis
       </table>
 
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
-        <div style={{ minWidth: 220, display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 16, borderTop: "2px solid #222", paddingTop: 8 }}>
-          <span>Total</span>
-          <span>{formatoMonto(total)}</span>
+        <div style={{ minWidth: 220 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 16, borderTop: "2px solid #222", paddingTop: 8 }}>
+            <span>Total</span>
+            <span>{formatoMonto(total)}</span>
+          </div>
+          {totalUsd != null && (
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, opacity: 0.7, marginTop: 4 }}>
+              <span>Equivalente</span>
+              <span>≈ ${totalUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })} USD</span>
+            </div>
+          )}
         </div>
       </div>
 

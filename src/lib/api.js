@@ -43,4 +43,6 @@ export const api = {
   registrarVenta: (data) => send("registrarVenta", undefined, { data }),
   registrarPago: (data) => send("registrarPago", undefined, { data }),
   marcarComisionPagada: (venta_id) => send("marcarComisionPagada", undefined, { data: { venta_id } }),
+  eliminarVenta: (venta_id) => send("eliminarVenta", undefined, { data: { venta_id } }),
+  eliminarCompra: (compra_id) => send("eliminarCompra", undefined, { data: { compra_id } }),
 };

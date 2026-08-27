@@ -56,6 +56,7 @@ export default function Ventas() {
           lista={cotizacionParaImprimir.lista}
           items={cotizacionParaImprimir.items}
           notas={cotizacionParaImprimir.notas}
+          totalUsd={cotizacionParaImprimir.totalUsd}
         />
       )}
 

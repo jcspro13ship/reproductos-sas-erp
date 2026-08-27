@@ -1,6 +1,6 @@
 import { useState } from "react";
-import TablaGenerica from "../../components/TablaGenerica";
 import NuevaCompra from "./NuevaCompra";
+import ComprasTabla from "./ComprasTabla";
 
 export default function Compras() {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -8,19 +8,7 @@ export default function Compras() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <NuevaCompra onCreada={() => setRefreshKey((k) => k + 1)} />
-      <TablaGenerica
-        key={refreshKey}
-        titulo="Compras"
-        sheet="COMPRAS"
-        columnas={[
-          { key: "id", label: "ID" },
-          { key: "proveedor_id", label: "Proveedor" },
-          { key: "fecha", label: "Fecha" },
-          { key: "numero_factura", label: "N.° factura" },
-          { key: "fecha_vencimiento", label: "Vence" },
-          { key: "estado", label: "Estado" },
-        ]}
-      />
+      <ComprasTabla key={refreshKey} />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { hoyDDMMAAAA } from "../../lib/fecha";
 import FilasItems from "../../components/FilasItems";
+import BuscadorSelect from "../../components/BuscadorSelect";
 import { useAuth } from "../../context/AuthContext";
 
 export default function NuevaCotizacion({ onGuardada }) {
@@ -11,6 +12,7 @@ export default function NuevaCotizacion({ onGuardada }) {
   const [listas, setListas] = useState([]);
   const [precios, setPrecios] = useState([]);
   const [tiposVenta, setTiposVenta] = useState([]);
+  const [tasasCambio, setTasasCambio] = useState([]);
   const [clienteId, setClienteId] = useState("");
   const [listaId, setListaId] = useState("");
   const [tipoVenta, setTipoVenta] = useState("");
@@ -28,13 +30,15 @@ export default function NuevaCotizacion({ onGuardada }) {
       api.list("LISTAS_PRECIO"),
       api.list("PRECIOS_PRODUCTO"),
       api.list("TIPOS_VENTA"),
+      api.list("TASAS_CAMBIO"),
     ])
-      .then(([c, p, l, pr, tv]) => {
+      .then(([c, p, l, pr, tv, tc]) => {
         setClientes(c);
         setProductos(p);
         setListas(l);
         setPrecios(pr);
         setTiposVenta(tv);
+        setTasasCambio(tc);
         if (l[0]) setListaId(l[0].id);
       })
       .catch((e) => setError(e.message));
@@ -97,8 +101,9 @@ export default function NuevaCotizacion({ onGuardada }) {
       onGuardada?.({
         cotizacion,
         cliente: clientes.find((c) => String(c.id) === String(clienteId)),
-        lista: listas.find((l) => String(l.id) === String(listaId)),
+        lista: listaSeleccionada,
         notas,
+        totalUsd,
         items: itemsValidos.map((i) => ({ ...i, producto: productos.find((p) => String(p.id) === String(i.producto_id)) })),
       });
 
@@ -114,6 +119,10 @@ export default function NuevaCotizacion({ onGuardada }) {
   }
 
   const total = items.reduce((s, i) => s + (Number(i.cantidad) || 0) * (Number(i.precio_unitario) || 0), 0);
+  const listaSeleccionada = listas.find((l) => String(l.id) === String(listaId));
+  const tasaUsd = tasasCambio.find((t) => t.moneda === "USD");
+  const totalUsd =
+    listaSeleccionada?.moneda !== "USD" && tasaUsd?.tasa ? total / Number(tasaUsd.tasa) : null;
 
   return (
     <div>
@@ -126,14 +135,13 @@ export default function NuevaCotizacion({ onGuardada }) {
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <label style={{ flex: 1, minWidth: 180 }}>
             Cliente
-            <select value={clienteId} onChange={(e) => setClienteId(e.target.value)} required>
-              <option value="">Selecciona...</option>
-              {clientes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nombre}
-                </option>
-              ))}
-            </select>
+            <BuscadorSelect
+              opciones={clientes.map((c) => ({ value: c.id, label: c.nombre }))}
+              value={clienteId}
+              onChange={setClienteId}
+              placeholder="Escribe el nombre del cliente..."
+              required
+            />
           </label>
           <label style={{ width: 200 }}>
             Lista de precio
@@ -180,6 +188,9 @@ export default function NuevaCotizacion({ onGuardada }) {
         </label>
         <p style={{ fontSize: 14, fontWeight: 600 }}>
           Total: ${total.toLocaleString("es-CO")}
+          {totalUsd != null && (
+            <span style={{ fontWeight: 400, opacity: 0.7 }}> (≈ ${totalUsd.toLocaleString("en-US", { maximumFractionDigits: 2 })} USD)</span>
+          )}
         </p>
         {error && <p style={{ color: "crimson", fontSize: 13 }}>{error}</p>}
         <button className="boton" type="submit" disabled={enviando} style={{ alignSelf: "flex-start" }}>

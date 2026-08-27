@@ -31,9 +31,10 @@ export default function Catalogo() {
 
   const productosFiltrados = useMemo(() => {
     return productos.filter((p) => {
+      const visible = String(p.visible_catalogo) !== "false";
       const coincideLinea = !lineaId || p.linea_id === lineaId;
       const coincideBusqueda = !busqueda || p.nombre?.toLowerCase().includes(busqueda.toLowerCase());
-      return coincideLinea && coincideBusqueda;
+      return visible && coincideLinea && coincideBusqueda;
     });
   }, [productos, lineaId, busqueda]);
 

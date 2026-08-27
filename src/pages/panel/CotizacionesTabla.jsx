@@ -9,6 +9,7 @@ export default function CotizacionesTabla({ onConvertida, onVerImprimir }) {
   const [clientes, setClientes] = useState([]);
   const [productos, setProductos] = useState([]);
   const [listas, setListas] = useState([]);
+  const [tasasCambio, setTasasCambio] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [convirtiendoId, setConvirtiendoId] = useState(null);
   const [error, setError] = useState(null);
@@ -21,13 +22,15 @@ export default function CotizacionesTabla({ onConvertida, onVerImprimir }) {
       api.list("CLIENTES"),
       api.list("PRODUCTOS"),
       api.list("LISTAS_PRECIO"),
+      api.list("TASAS_CAMBIO"),
     ])
-      .then(([c, d, cl, p, l]) => {
+      .then(([c, d, cl, p, l, tc]) => {
         setCotizaciones(c);
         setDetalle(d);
         setClientes(cl);
         setProductos(p);
         setListas(l);
+        setTasasCambio(tc);
       })
       .catch((e) => setError(e.message))
       .finally(() => setCargando(false));
@@ -67,11 +70,16 @@ export default function CotizacionesTabla({ onConvertida, onVerImprimir }) {
     const items = detalle
       .filter((d) => d.cotizacion_id === cotizacion.id)
       .map((d) => ({ ...d, producto: productos.find((p) => String(p.id) === String(d.producto_id)) }));
+    const lista = listas.find((l) => String(l.id) === String(cotizacion.lista_precio_id));
+    const total = items.reduce((s, i) => s + (Number(i.cantidad) || 0) * (Number(i.precio_unitario) || 0), 0);
+    const tasaUsd = tasasCambio.find((t) => t.moneda === "USD");
+    const totalUsd = lista?.moneda !== "USD" && tasaUsd?.tasa ? total / Number(tasaUsd.tasa) : null;
     onVerImprimir?.({
       cotizacion,
       cliente: clienteDe(cotizacion),
-      lista: listas.find((l) => String(l.id) === String(cotizacion.lista_precio_id)),
+      lista,
       notas: cotizacion.notas,
+      totalUsd,
       items,
     });
   }

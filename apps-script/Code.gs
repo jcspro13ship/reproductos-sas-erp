@@ -22,6 +22,13 @@
 // POST { action: "marcarComisionPagada", data: { venta_id } }
 // COMISIONES no tiene columna id (por eso no se puede usar el update/delete genérico ahí);
 // esta acción ubica la fila por venta_id directamente.
+// POST { action: "eliminarVenta", data: { venta_id } }
+// POST { action: "eliminarCompra", data: { compra_id } }
+// Deshacen en cascada una venta/compra ya registrada: reponen el stock, y borran
+// detalle, movimientos de inventario, comisión (solo venta), CxC/CxP y el pago si
+// lo hubo. El costo promedio NO se revierte al eliminar una compra (es un promedio
+// ponderado; no se puede deshacer con exactitud si hubo compras de ese producto
+// después) — ajústalo a mano si hace falta.
 
 function doGet(e) {
   try {
@@ -86,6 +93,12 @@ function doPost(e) {
     }
     if (accion === 'marcarComisionPagada') {
       return responder(marcarComisionPagada(body.data || {}))
+    }
+    if (accion === 'eliminarVenta') {
+      return responder(eliminarVenta(body.data || {}))
+    }
+    if (accion === 'eliminarCompra') {
+      return responder(eliminarCompra(body.data || {}))
     }
     return responder({ ok: false, error: 'Acción POST no reconocida: ' + accion })
   } catch (err) {
@@ -391,6 +404,122 @@ function marcarComisionPagada(datos) {
       }
     }
     return { ok: false, error: 'No se encontró comisión para la venta ' + datos.venta_id }
+  } finally {
+    lock.releaseLock()
+  }
+}
+
+// Borra una fila localizándola por una columna que no sea "id" (para pestañas
+// como COMISIONES que no tienen columna id). Silenciosa si no encuentra nada.
+function borrarFilaSinId(nombre, columnaClave, valor) {
+  var hoja = obtenerHoja(nombre)
+  var encabezados = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0]
+  var indice = encabezados.indexOf(columnaClave)
+  if (indice === -1) return false
+  var valores = hoja.getRange(2, 1, Math.max(hoja.getLastRow() - 1, 0), encabezados.length).getValues()
+  for (var i = 0; i < valores.length; i++) {
+    if (String(valores[i][indice]) === String(valor)) {
+      hoja.deleteRow(i + 2)
+      return true
+    }
+  }
+  return false
+}
+
+function eliminarVenta(datos) {
+  var lock = LockService.getScriptLock()
+  lock.waitLock(10000)
+  try {
+    var ventaId = datos.venta_id
+    var venta = buscarPorId('VENTAS', ventaId)
+    if (!venta) return { ok: false, error: 'Venta no encontrada: ' + ventaId }
+
+    var detalles = leerTodo('VENTAS_DETALLE').filter(function (d) {
+      return String(d.venta_id) === String(ventaId)
+    })
+    detalles.forEach(function (d) {
+      var producto = buscarPorId('PRODUCTOS', d.producto_id)
+      if (producto) {
+        var nuevoStock = (Number(producto.stock_actual) || 0) + Number(d.cantidad)
+        actualizarFila('PRODUCTOS', producto.id, { stock_actual: nuevoStock })
+      }
+      borrarFila('VENTAS_DETALLE', d.id)
+    })
+
+    var movimientos = leerTodo('MOVIMIENTOS_INVENTARIO').filter(function (m) {
+      return m.referencia_tipo === 'venta' && String(m.referencia_id) === String(ventaId)
+    })
+    movimientos.forEach(function (m) {
+      borrarFila('MOVIMIENTOS_INVENTARIO', m.id)
+    })
+
+    borrarFilaSinId('COMISIONES', 'venta_id', ventaId)
+
+    var cxc = leerTodo('CXC').find(function (c) {
+      return String(c.venta_id) === String(ventaId)
+    })
+    if (cxc) {
+      var pagosCxc = leerTodo('PAGOS').filter(function (p) {
+        return p.referencia_tipo === 'cxc' && String(p.referencia_id) === String(cxc.id)
+      })
+      pagosCxc.forEach(function (p) {
+        borrarFila('PAGOS', p.id)
+      })
+      borrarFila('CXC', cxc.id)
+    }
+
+    borrarFila('VENTAS', ventaId)
+
+    return { ok: true, data: { eliminado: true } }
+  } finally {
+    lock.releaseLock()
+  }
+}
+
+function eliminarCompra(datos) {
+  var lock = LockService.getScriptLock()
+  lock.waitLock(10000)
+  try {
+    var compraId = datos.compra_id
+    var compra = buscarPorId('COMPRAS', compraId)
+    if (!compra) return { ok: false, error: 'Compra no encontrada: ' + compraId }
+
+    var detalles = leerTodo('COMPRAS_DETALLE').filter(function (d) {
+      return String(d.compra_id) === String(compraId)
+    })
+    detalles.forEach(function (d) {
+      var producto = buscarPorId('PRODUCTOS', d.producto_id)
+      if (producto) {
+        var nuevoStock = (Number(producto.stock_actual) || 0) - Number(d.cantidad)
+        actualizarFila('PRODUCTOS', producto.id, { stock_actual: nuevoStock })
+        // El costo_promedio no se toca — ver nota arriba de doPost.
+      }
+      borrarFila('COMPRAS_DETALLE', d.id)
+    })
+
+    var movimientos = leerTodo('MOVIMIENTOS_INVENTARIO').filter(function (m) {
+      return m.referencia_tipo === 'compra' && String(m.referencia_id) === String(compraId)
+    })
+    movimientos.forEach(function (m) {
+      borrarFila('MOVIMIENTOS_INVENTARIO', m.id)
+    })
+
+    var cxp = leerTodo('CXP').find(function (c) {
+      return String(c.compra_id) === String(compraId)
+    })
+    if (cxp) {
+      var pagosCxp = leerTodo('PAGOS').filter(function (p) {
+        return p.referencia_tipo === 'cxp' && String(p.referencia_id) === String(cxp.id)
+      })
+      pagosCxp.forEach(function (p) {
+        borrarFila('PAGOS', p.id)
+      })
+      borrarFila('CXP', cxp.id)
+    }
+
+    borrarFila('COMPRAS', compraId)
+
+    return { ok: true, data: { eliminado: true } }
   } finally {
     lock.releaseLock()
   }

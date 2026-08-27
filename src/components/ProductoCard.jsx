@@ -19,7 +19,13 @@ export default function ProductoCard({ producto }) {
     >
       <div style={{ aspectRatio: "1 / 1", background: "#f4f4f4" }}>
         {imagenUrl && (
-          <img src={imagenUrl} alt={producto.nombre} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <img
+            src={imagenUrl}
+            alt={producto.nombre}
+            loading="lazy"
+            decoding="async"
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
         )}
       </div>
       <button

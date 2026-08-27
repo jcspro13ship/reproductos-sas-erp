@@ -9,6 +9,7 @@ export default function VentasTabla({ onVerImprimir }) {
   const [productos, setProductos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
+  const [eliminando, setEliminando] = useState(null);
 
   function cargar() {
     setCargando(true);
@@ -47,6 +48,22 @@ export default function VentasTabla({ onVerImprimir }) {
     onVerImprimir?.({ venta, cliente: clienteDe(venta), items });
   }
 
+  async function eliminar(venta) {
+    if (!window.confirm(`¿Eliminar la venta ${venta.id}? Esto repone el stock y borra su comisión, CxC y pago si lo tenía. No se puede deshacer.`)) {
+      return;
+    }
+    setEliminando(venta.id);
+    setError(null);
+    try {
+      await api.eliminarVenta(venta.id);
+      cargar();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setEliminando(null);
+    }
+  }
+
   return (
     <section>
       <h1 style={{ fontSize: 20, marginBottom: 16 }}>Ventas</h1>
@@ -77,9 +94,16 @@ export default function VentasTabla({ onVerImprimir }) {
                 <td>{v.numero_factura}</td>
                 <td>{v.fecha_vencimiento}</td>
                 <td>{v.estado}</td>
-                <td>
+                <td style={{ display: "flex", gap: 8 }}>
                   <button className="boton-secundario boton" onClick={() => verImprimir(v)}>
                     Ver / Imprimir
+                  </button>
+                  <button
+                    className="boton-secundario boton"
+                    disabled={eliminando === v.id}
+                    onClick={() => eliminar(v)}
+                  >
+                    {eliminando === v.id ? "Eliminando..." : "Eliminar"}
                   </button>
                 </td>
               </tr>

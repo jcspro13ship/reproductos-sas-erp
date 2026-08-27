@@ -39,9 +39,16 @@ export default function CatalogoPrecios() {
         titulo="Precios por producto"
         sheet="PRECIOS_PRODUCTO"
         columnas={[
-          { key: "id", label: "ID" },
-          { key: "producto_id", label: "Producto" },
-          { key: "lista_id", label: "Lista" },
+          {
+            key: "producto_id",
+            label: "Producto",
+            render: (fila) => productos.find((p) => String(p.id) === String(fila.producto_id))?.nombre || fila.producto_id,
+          },
+          {
+            key: "lista_id",
+            label: "Lista",
+            render: (fila) => listas.find((l) => String(l.id) === String(fila.lista_id))?.nombre || fila.lista_id,
+          },
           { key: "precio", label: "Precio" },
         ]}
         campos={[
