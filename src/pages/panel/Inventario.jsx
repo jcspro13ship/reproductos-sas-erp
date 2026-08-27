@@ -6,6 +6,7 @@ import NuevoProducto from "./NuevoProducto";
 export default function Inventario() {
   const [lineas, setLineas] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [mostrarNuevo, setMostrarNuevo] = useState(false);
 
   function cargarLineas() {
     api.list("LINEAS").then(setLineas);
@@ -17,7 +18,10 @@ export default function Inventario() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 40 }}>
-      <NuevoProducto onCreado={() => setRefreshKey((k) => k + 1)} />
+      <button className="boton" style={{ alignSelf: "flex-start" }} onClick={() => setMostrarNuevo((v) => !v)}>
+        {mostrarNuevo ? "Cancelar" : "+ Crear nuevo producto"}
+      </button>
+      {mostrarNuevo && <NuevoProducto onCreado={() => setRefreshKey((k) => k + 1)} />}
       <TablaEditable
         key={refreshKey}
         titulo="Productos"
