@@ -78,6 +78,7 @@ export default function BuscadorSelect({ opciones, value, onChange, placeholder,
         placeholder={placeholder || "Escribe para buscar..."}
         required={required}
         autoComplete="off"
+        style={{ width: "100%" }}
       />
       {abierto && filtradasVisibles.length > 0 && (
         <ul
