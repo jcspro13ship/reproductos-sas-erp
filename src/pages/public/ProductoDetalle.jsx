@@ -6,6 +6,7 @@ import { useClienteAuth } from "../../context/ClienteAuthContext";
 import { useCart } from "../../context/CartContext";
 import { resolverImagenDrive } from "../../lib/imagenDrive";
 import { compartirProducto } from "../../lib/compartir";
+import { parsearDescripcion } from "../../lib/descripcion";
 
 export default function ProductoDetalle() {
   const { id } = useParams();
@@ -65,7 +66,18 @@ export default function ProductoDetalle() {
             {producto.precio != null ? `$${Number(producto.precio).toLocaleString("es-CO")}` : "Consultar precio"}
           </p>
           {producto.descripcion && (
-            <p style={{ fontSize: 14, opacity: 0.8, margin: "12px 0" }}>{producto.descripcion}</p>
+            <div style={{ margin: "12px 0" }}>
+              {parsearDescripcion(producto.descripcion).map((seccion, i) => (
+                <div key={i} style={{ marginBottom: 12 }}>
+                  {seccion.titulo && (
+                    <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 4px" }}>{seccion.titulo}</h3>
+                  )}
+                  {seccion.contenido && (
+                    <p style={{ fontSize: 14, opacity: 0.8, margin: 0, whiteSpace: "pre-line" }}>{seccion.contenido}</p>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
           <p style={{ fontSize: 13 }}>
             {Number(producto.stock_actual) > 0 ? (

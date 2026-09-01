@@ -27,6 +27,7 @@ export default function Inventario() {
         titulo="Productos"
         sheet="PRODUCTOS"
         permitirCrear={false}
+        buscarEn={["id", "nombre"]}
         columnas={[
           { key: "id", label: "ID" },
           { key: "nombre", label: "Producto" },

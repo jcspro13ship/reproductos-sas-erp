@@ -3,12 +3,13 @@ import { api } from "../lib/api";
 import { descargarCSV, filasACSV } from "../lib/csv";
 import FormularioEntidad from "./FormularioEntidad";
 
-export default function TablaEditable({ sheet, titulo, columnas, campos, onGuardado, permitirCrear = true }) {
+export default function TablaEditable({ sheet, titulo, columnas, campos, onGuardado, permitirCrear = true, buscarEn }) {
   const [filas, setFilas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
   const [editando, setEditando] = useState(null); // null cerrado, {} nuevo, {...fila} editar
   const [refreshKey, setRefreshKey] = useState(0);
+  const [busqueda, setBusqueda] = useState("");
 
   useEffect(() => {
     let activo = true;
@@ -32,6 +33,12 @@ export default function TablaEditable({ sheet, titulo, columnas, campos, onGuard
     setRefreshKey((k) => k + 1);
     onGuardado?.();
   }
+
+  const filtro = busqueda.trim().toLowerCase();
+  const filasFiltradas =
+    buscarEn && filtro
+      ? filas.filter((fila) => buscarEn.some((clave) => String(fila[clave] ?? "").toLowerCase().includes(filtro)))
+      : filas;
 
   return (
     <section>
@@ -63,10 +70,21 @@ export default function TablaEditable({ sheet, titulo, columnas, campos, onGuard
         </div>
       )}
 
+      {buscarEn && filas.length > 0 && (
+        <input
+          type="text"
+          placeholder="Buscar..."
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          style={{ marginBottom: 12, maxWidth: 320 }}
+        />
+      )}
+
       {cargando && <p>Cargando...</p>}
       {error && <p style={{ color: "crimson" }}>{error}</p>}
       {!cargando && !error && filas.length === 0 && <p>No hay registros en {sheet} todavía.</p>}
-      {!cargando && !error && filas.length > 0 && (
+      {!cargando && !error && filas.length > 0 && filasFiltradas.length === 0 && <p>No se encontraron resultados para "{busqueda}".</p>}
+      {!cargando && !error && filasFiltradas.length > 0 && (
         <table>
           <thead>
             <tr>
@@ -77,7 +95,7 @@ export default function TablaEditable({ sheet, titulo, columnas, campos, onGuard
             </tr>
           </thead>
           <tbody>
-            {filas.map((fila) => (
+            {filasFiltradas.map((fila) => (
               <tr key={fila.id}>
                 {columnas.map((c) => (
                   <td key={c.key}>

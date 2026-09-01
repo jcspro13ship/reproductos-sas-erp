@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
+import { generarCodigoProducto } from "../../lib/productos";
 
 export default function NuevoProducto({ onCreado }) {
   const [lineas, setLineas] = useState([]);
   const [listas, setListas] = useState([]);
+  const [productos, setProductos] = useState([]);
   const [nombre, setNombre] = useState("");
   const [lineaId, setLineaId] = useState("");
+  const [codigo, setCodigo] = useState("");
+  const [codigoManual, setCodigoManual] = useState(false);
   const [imagen, setImagen] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [ivaPct, setIvaPct] = useState("");
@@ -16,13 +20,21 @@ export default function NuevoProducto({ onCreado }) {
   const [mensaje, setMensaje] = useState(null);
 
   useEffect(() => {
-    Promise.all([api.list("LINEAS"), api.list("LISTAS_PRECIO")])
-      .then(([l, lp]) => {
+    Promise.all([api.list("LINEAS"), api.list("LISTAS_PRECIO"), api.list("PRODUCTOS")])
+      .then(([l, lp, p]) => {
         setLineas(l);
         setListas(lp);
+        setProductos(p);
       })
       .catch((e) => setError(e.message));
   }, []);
+
+  // Sugiere el código automáticamente al elegir la línea; si la persona lo
+  // edita a mano, dejamos de tocarlo.
+  useEffect(() => {
+    if (codigoManual || !lineaId) return;
+    setCodigo(generarCodigoProducto(lineaId, productos, lineas));
+  }, [lineaId, productos, lineas, codigoManual]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -30,7 +42,15 @@ export default function NuevoProducto({ onCreado }) {
     setError(null);
     setMensaje(null);
     try {
+      const codigoFinal = codigo.trim().toUpperCase();
+      if (productos.some((p) => String(p.id).toUpperCase() === codigoFinal)) {
+        setError(`Ya existe un producto con el código "${codigoFinal}". Cámbialo e intenta de nuevo.`);
+        setEnviando(false);
+        return;
+      }
+
       const producto = await api.create("PRODUCTOS", {
+        id: codigoFinal,
         nombre,
         linea_id: lineaId,
         imagen,
@@ -49,9 +69,12 @@ export default function NuevoProducto({ onCreado }) {
         });
       }
 
-      setMensaje(`"${nombre}" se creó correctamente${listaId && precio !== "" ? " con su precio" : ""}.`);
+      setMensaje(`"${nombre}" (${producto.id}) se creó correctamente${listaId && precio !== "" ? " con su precio" : ""}.`);
+      setProductos((prev) => [...prev, producto]);
       setNombre("");
       setLineaId("");
+      setCodigo("");
+      setCodigoManual(false);
       setImagen("");
       setDescripcion("");
       setIvaPct("");
@@ -85,6 +108,20 @@ export default function NuevoProducto({ onCreado }) {
             </option>
           ))}
         </select>
+      </label>
+      <label>
+        Código
+        <input
+          value={codigo}
+          onChange={(e) => {
+            setCodigo(e.target.value.toUpperCase());
+            setCodigoManual(true);
+          }}
+          required
+        />
+        <span style={{ display: "block", fontSize: 11, opacity: 0.6, fontWeight: 400 }}>
+          Se genera solo según la línea elegida; puedes cambiarlo si lo necesitas.
+        </span>
       </label>
       <label>
         Foto (link de Drive o Imgur)
