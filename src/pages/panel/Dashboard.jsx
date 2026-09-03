@@ -4,23 +4,30 @@ import { api } from "../../lib/api";
 import { formatoMoneda } from "../../lib/formato";
 import {
   comisionPendiente,
-  comprasDelMes,
+  resumenCompras,
   porVencerEnDias,
   productosEnNegativo,
   resumenCartera,
   topProductosVendidos,
-  ventasDelMes,
-  ventasPorMes,
+  resumenVentas,
+  ventasPorPeriodo,
 } from "../../lib/tablero";
-import { flujoDeCajaDelMes } from "../../lib/caja";
+import { resumenFlujoCaja } from "../../lib/caja";
+import { PRESETS_PERIODO } from "../../lib/periodo";
 import KpiCard from "../../components/KpiCard";
 import GraficoBarras from "../../components/GraficoBarras";
+import PeriodoSelector from "../../components/PeriodoSelector";
 
 export default function Dashboard() {
   const { sesion, hasAccess } = useAuth();
   const [datos, setDatos] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
+  const primerPreset = PRESETS_PERIODO[0];
+  const [periodo, setPeriodo] = useState(() => {
+    const [desde, hasta] = primerPreset.rango();
+    return { desde, hasta, etiqueta: primerPreset.etiqueta, presetId: primerPreset.id };
+  });
 
   useEffect(() => {
     Promise.all([
@@ -56,10 +63,12 @@ export default function Dashboard() {
   return (
     <div>
       <h1 style={{ fontSize: 22, marginBottom: 4 }}>Tablero de control</h1>
-      <p style={{ opacity: 0.7, marginBottom: 24 }}>Hola {sesion?.usuario?.nombre}.</p>
+      <p style={{ opacity: 0.7, marginBottom: 16 }}>Hola {sesion?.usuario?.nombre}.</p>
+
+      <PeriodoSelector presetActivo={periodo.presetId} onCambiar={setPeriodo} />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-        {hasAccess("cxc", "ver") && hasAccess("cxp", "ver") && <BloqueFlujoCaja pagos={pagos} />}
+        {hasAccess("cxc", "ver") && hasAccess("cxp", "ver") && <BloqueFlujoCaja pagos={pagos} periodo={periodo} />}
 
         {hasAccess("ventas", "ver") && (
           <BloqueVentas
@@ -69,12 +78,13 @@ export default function Dashboard() {
             productos={productos}
             usuarioId={usuarioId}
             soloPropias={soloMisVentas}
+            periodo={periodo}
           />
         )}
 
         {hasAccess("inventario", "ver") && <BloqueInventario productos={productos} />}
 
-        {hasAccess("compras", "ver") && <BloqueCompras compras={compras} comprasDetalle={comprasDetalle} />}
+        {hasAccess("compras", "ver") && <BloqueCompras compras={compras} comprasDetalle={comprasDetalle} periodo={periodo} />}
 
         {(hasAccess("cxc", "ver") || hasAccess("cxp", "ver")) && (
           <BloqueCartera
@@ -89,27 +99,28 @@ export default function Dashboard() {
   );
 }
 
-function BloqueVentas({ ventas, ventasDetalle, comisiones, productos, usuarioId, soloPropias }) {
+function BloqueVentas({ ventas, ventasDetalle, comisiones, productos, usuarioId, soloPropias, periodo }) {
   const vendedorId = soloPropias ? usuarioId : undefined;
-  const resumen = ventasDelMes(ventas, ventasDetalle, { vendedorId });
-  const porMes = ventasPorMes(ventas, ventasDetalle, { vendedorId });
-  const topProductos = topProductosVendidos(ventas, ventasDetalle, productos, { vendedorId });
+  const resumen = resumenVentas(ventas, ventasDetalle, { desde: periodo.desde, hasta: periodo.hasta, vendedorId });
+  const porMes = ventasPorPeriodo(ventas, ventasDetalle, { desde: periodo.desde, hasta: periodo.hasta, vendedorId });
+  const topProductos = topProductosVendidos(ventas, ventasDetalle, productos, { desde: periodo.desde, hasta: periodo.hasta, vendedorId });
 
   return (
     <section>
       <strong style={{ fontSize: 14 }}>{soloPropias ? "Mi desempeño" : "Ventas"}</strong>
+      <p style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>Período: {periodo.etiqueta}</p>
       <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
-        <KpiCard etiqueta={soloPropias ? "Mis ventas del mes" : "Ventas del mes"} valor={resumen.cantidad} />
-        <KpiCard etiqueta="Total vendido este mes" valor={formatoMoneda(resumen.total)} />
+        <KpiCard etiqueta={soloPropias ? "Mis ventas" : "Ventas"} valor={resumen.cantidad} />
+        <KpiCard etiqueta="Total vendido" valor={formatoMoneda(resumen.total)} />
         {soloPropias && (
-          <KpiCard etiqueta="Mi comisión pendiente" valor={formatoMoneda(comisionPendiente(comisiones, usuarioId))} />
+          <KpiCard etiqueta="Mi comisión pendiente (todo)" valor={formatoMoneda(comisionPendiente(comisiones, usuarioId))} />
         )}
       </div>
 
       <div style={{ display: "flex", gap: 24, marginTop: 20, flexWrap: "wrap" }}>
         <div style={{ flex: 2, minWidth: 320, border: "1px solid var(--color-borde)", borderRadius: "var(--radio)", padding: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-            {soloPropias ? "Mis ventas — últimos 6 meses" : "Ventas — últimos 6 meses"}
+            {soloPropias ? "Mis ventas por mes" : "Ventas por mes"}
           </div>
           <GraficoBarras datos={porMes} formatoValor={formatoMoneda} />
         </div>
@@ -129,6 +140,7 @@ function BloqueInventario({ productos }) {
   return (
     <section>
       <strong style={{ fontSize: 14 }}>Inventario</strong>
+      <p style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>Saldo actual (no cambia con el período elegido).</p>
       <div style={{ display: "flex", gap: 16, marginTop: 8, marginBottom: 12 }}>
         <KpiCard etiqueta="Productos en negativo" valor={enNegativo.length} alerta={enNegativo.length > 0} />
       </div>
@@ -154,30 +166,31 @@ function BloqueInventario({ productos }) {
   );
 }
 
-function BloqueCompras({ compras, comprasDetalle }) {
-  const resumen = comprasDelMes(compras, comprasDetalle);
+function BloqueCompras({ compras, comprasDetalle, periodo }) {
+  const resumen = resumenCompras(compras, comprasDetalle, { desde: periodo.desde, hasta: periodo.hasta });
   return (
     <section>
       <strong style={{ fontSize: 14 }}>Compras</strong>
+      <p style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>Período: {periodo.etiqueta}</p>
       <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
-        <KpiCard etiqueta="Compras del mes" valor={resumen.cantidad} />
-        <KpiCard etiqueta="Total comprado este mes" valor={formatoMoneda(resumen.total)} />
+        <KpiCard etiqueta="Compras" valor={resumen.cantidad} />
+        <KpiCard etiqueta="Total comprado" valor={formatoMoneda(resumen.total)} />
       </div>
     </section>
   );
 }
 
-function BloqueFlujoCaja({ pagos }) {
-  const flujo = flujoDeCajaDelMes(pagos);
+function BloqueFlujoCaja({ pagos, periodo }) {
+  const flujo = resumenFlujoCaja(pagos, { desde: periodo.desde, hasta: periodo.hasta });
   return (
     <section>
       <strong style={{ fontSize: 14 }}>Flujo de caja</strong>
       <p style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>
-        Cobros y pagos reales del mes (no cartera pendiente). Se actualiza cada vez que recargas el tablero.
+        Cobros y pagos reales del período ({periodo.etiqueta}) — no cartera pendiente.
       </p>
       <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
-        <KpiCard etiqueta="Cobros del mes" valor={formatoMoneda(flujo.cobros)} />
-        <KpiCard etiqueta="Pagos del mes" valor={formatoMoneda(flujo.pagos)} />
+        <KpiCard etiqueta="Cobros" valor={formatoMoneda(flujo.cobros)} />
+        <KpiCard etiqueta="Pagos" valor={formatoMoneda(flujo.pagos)} />
         <KpiCard etiqueta="Flujo neto" valor={formatoMoneda(flujo.neto)} alerta={flujo.neto < 0} />
       </div>
     </section>
@@ -192,6 +205,7 @@ function BloqueCartera({ cxc, cxp, ventas, vendedorId }) {
   return (
     <section>
       <strong style={{ fontSize: 14 }}>{vendedorId ? "Mi cartera" : "Cartera"}</strong>
+      <p style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>Saldo actual (no cambia con el período elegido).</p>
       <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
         {resumenCxc && (
           <>

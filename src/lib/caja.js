@@ -1,16 +1,13 @@
 import { parseDDMMAAAA } from "./fecha";
+import { dentroDeRango } from "./periodo";
 
-export function flujoDeCajaDelMes(pagos) {
-  const hoy = new Date();
-  const delMes = pagos.filter((p) => {
-    const fecha = parseDDMMAAAA(p.fecha);
-    return fecha && fecha.getMonth() === hoy.getMonth() && fecha.getFullYear() === hoy.getFullYear();
-  });
+export function resumenFlujoCaja(pagos, { desde, hasta } = {}) {
+  const delPeriodo = pagos.filter((p) => dentroDeRango(parseDDMMAAAA(p.fecha), desde, hasta));
 
-  const cobros = delMes
+  const cobros = delPeriodo
     .filter((p) => p.referencia_tipo === "cxc")
     .reduce((acc, p) => acc + (Number(p.monto) || 0), 0);
-  const pagosSalida = delMes
+  const pagosSalida = delPeriodo
     .filter((p) => p.referencia_tipo === "cxp")
     .reduce((acc, p) => acc + (Number(p.monto) || 0), 0);
 
