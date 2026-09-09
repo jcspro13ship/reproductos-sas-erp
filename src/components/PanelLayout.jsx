@@ -19,7 +19,7 @@ export const MODULOS_PANEL = [
 
 export default function PanelLayout() {
   const { sesion, logout, hasAccess } = useAuth();
-  const { empresa } = useEmpresa();
+  const { empresa, cargando: cargandoEmpresa } = useEmpresa();
   const logoUrl = resolverImagenDrive(empresa?.logo_url);
   const navigate = useNavigate();
 
@@ -47,7 +47,7 @@ export default function PanelLayout() {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 700, marginBottom: 16 }}>
           {logoUrl && <img src={logoUrl} alt="" style={{ height: 28, width: "auto" }} />}
-          {empresa?.nombre || "Panel ERP"}
+          {cargandoEmpresa ? "" : empresa?.nombre || "Panel ERP"}
         </div>
         {visibles.map((m) => (
           <Link

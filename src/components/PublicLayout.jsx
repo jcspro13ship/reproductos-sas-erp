@@ -7,7 +7,7 @@ import { resolverImagenDrive } from "../lib/imagenDrive";
 export default function PublicLayout() {
   const { items } = useCart();
   const { cliente, logout } = useClienteAuth();
-  const { empresa } = useEmpresa();
+  const { empresa, cargando: cargandoEmpresa } = useEmpresa();
   const logoUrl = resolverImagenDrive(empresa?.logo_url);
   const navigate = useNavigate();
   const cantidadTotal = items.reduce((acc, i) => acc + i.cantidad, 0);
@@ -29,7 +29,7 @@ export default function PublicLayout() {
             style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 700, fontSize: 18, textDecoration: "none" }}
           >
             {logoUrl && <img src={logoUrl} alt="" style={{ height: 32, width: "auto" }} />}
-            {empresa?.nombre || "Catálogo"}
+            {cargandoEmpresa ? "" : empresa?.nombre || "Catálogo"}
           </Link>
           <nav style={{ display: "flex", gap: 20, alignItems: "center" }}>
             <Link to="/" style={{ textDecoration: "none" }}>
