@@ -6,7 +6,7 @@ import { resolverImagenDrive } from "../../lib/imagenDrive";
 
 export default function Login() {
   const { login, cargando, error } = useAuth();
-  const { empresa, cargando: cargandoEmpresa } = useEmpresa();
+  const { empresa } = useEmpresa();
   const [email, setEmail] = useState("");
   const [clave, setClave] = useState("");
   const navigate = useNavigate();
@@ -27,7 +27,7 @@ export default function Login() {
           style={{ maxWidth: 160, maxHeight: 100, display: "block", marginBottom: 20 }}
         />
       )}
-      <h1 style={{ fontSize: 22, marginBottom: 8 }}>{cargandoEmpresa ? "" : empresa?.nombre || "Panel interno"}</h1>
+      <h1 style={{ fontSize: 22, marginBottom: 8 }}>{empresa?.nombre || "Panel interno"}</h1>
       <p style={{ fontSize: 13, opacity: 0.7, marginBottom: 20 }}>
         Ingresa con el correo registrado en USUARIOS.
       </p>
