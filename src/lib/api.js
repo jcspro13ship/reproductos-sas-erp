@@ -79,4 +79,5 @@ export const api = {
   marcarComisionPagada: (venta_id) => send("marcarComisionPagada", undefined, { data: { venta_id } }),
   eliminarVenta: (venta_id) => send("eliminarVenta", undefined, { data: { venta_id } }),
   eliminarCompra: (compra_id) => send("eliminarCompra", undefined, { data: { compra_id } }),
+  armarKit: (data) => send("armarKit", undefined, { data }),
 };

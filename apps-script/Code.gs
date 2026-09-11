@@ -29,6 +29,15 @@
 // lo hubo. El costo promedio NO se revierte al eliminar una compra (es un promedio
 // ponderado; no se puede deshacer con exactitud si hubo compras de ese producto
 // después) — ajústalo a mano si hace falta.
+// POST { action: "armarKit", data: { kit_producto_id, cantidad, fecha } }
+// Un "kit" es una fila más de PRODUCTOS (con es_kit=true) cuya receta vive en
+// KIT_COMPONENTES (kit_producto_id, producto_id, cantidad por unidad de kit).
+// Armar un kit descuenta esa cantidad x la cantidad armada del stock de cada
+// componente, y aumenta el stock del kit — igual que una "producción" interna.
+// El costo del kit se recalcula como promedio ponderado (igual que en una
+// compra), usando el costo_promedio vigente de cada componente. Igual que en
+// registrarVenta, se permite que un componente quede en negativo: no se
+// bloquea el armado. Queda un registro por armado en ARMADOS_KIT.
 
 function doGet(e) {
   try {
@@ -99,6 +108,9 @@ function doPost(e) {
     }
     if (accion === 'eliminarCompra') {
       return responder(eliminarCompra(body.data || {}))
+    }
+    if (accion === 'armarKit') {
+      return responder(armarKit(body.data || {}))
     }
     return responder({ ok: false, error: 'Acción POST no reconocida: ' + accion })
   } catch (err) {
@@ -520,6 +532,90 @@ function eliminarCompra(datos) {
     borrarFila('COMPRAS', compraId)
 
     return { ok: true, data: { eliminado: true } }
+  } finally {
+    lock.releaseLock()
+  }
+}
+
+// Arma `cantidad` unidades del kit `kit_producto_id` a partir de su receta en
+// KIT_COMPONENTES. Descuenta cada componente, aumenta el stock del kit, y
+// deja un registro en ARMADOS_KIT + un movimiento de inventario por cada
+// fila afectada (mismo patrón que recibirCompra/registrarVenta).
+function armarKit(datos) {
+  var lock = LockService.getScriptLock()
+  lock.waitLock(10000)
+  try {
+    var kitId = datos.kit_producto_id
+    var cantidadArmar = Number(datos.cantidad)
+    if (!kitId || !cantidadArmar || cantidadArmar <= 0) {
+      return { ok: false, error: 'Falta el kit o la cantidad a armar' }
+    }
+
+    var kit = buscarPorId('PRODUCTOS', kitId)
+    if (!kit) return { ok: false, error: 'Kit no encontrado: ' + kitId }
+
+    var receta = leerTodo('KIT_COMPONENTES').filter(function (c) {
+      return String(c.kit_producto_id) === String(kitId)
+    })
+    if (receta.length === 0) {
+      return { ok: false, error: 'Este producto no tiene componentes definidos en KIT_COMPONENTES' }
+    }
+
+    var componentesInfo = receta.map(function (c) {
+      var producto = buscarPorId('PRODUCTOS', c.producto_id)
+      if (!producto) throw new Error('Componente no encontrado: ' + c.producto_id)
+      return { producto: producto, cantidadPorKit: Number(c.cantidad) || 0 }
+    })
+
+    // Costo del kit = suma de (costo_promedio de cada componente x cuánto lleva por kit).
+    var costoUnitarioKit = componentesInfo.reduce(function (suma, info) {
+      return suma + info.cantidadPorKit * (Number(info.producto.costo_promedio) || 0)
+    }, 0)
+
+    var armado = crearFila('ARMADOS_KIT', {
+      kit_producto_id: kitId,
+      cantidad: cantidadArmar,
+      fecha: datos.fecha,
+      costo_unitario: costoUnitarioKit,
+    })
+
+    componentesInfo.forEach(function (info) {
+      var cantidadUsada = info.cantidadPorKit * cantidadArmar
+      var nuevoStock = (Number(info.producto.stock_actual) || 0) - cantidadUsada
+      actualizarFila('PRODUCTOS', info.producto.id, { stock_actual: nuevoStock })
+      crearFila('MOVIMIENTOS_INVENTARIO', {
+        producto_id: info.producto.id,
+        tipo: 'salida',
+        cantidad: cantidadUsada,
+        referencia_tipo: 'armado_kit',
+        referencia_id: armado.id,
+        costo_unitario: info.producto.costo_promedio,
+        fecha: datos.fecha,
+      })
+    })
+
+    var stockKitActual = Number(kit.stock_actual) || 0
+    var costoKitActual = Number(kit.costo_promedio) || 0
+    var nuevoStockKit = stockKitActual + cantidadArmar
+    // Mismo promedio ponderado que en recibirCompra.
+    var nuevoCostoKit =
+      nuevoStockKit > 0 ? (stockKitActual * costoKitActual + cantidadArmar * costoUnitarioKit) / nuevoStockKit : costoUnitarioKit
+    actualizarFila('PRODUCTOS', kitId, { stock_actual: nuevoStockKit, costo_promedio: nuevoCostoKit })
+
+    crearFila('MOVIMIENTOS_INVENTARIO', {
+      producto_id: kitId,
+      tipo: 'entrada',
+      cantidad: cantidadArmar,
+      referencia_tipo: 'armado_kit',
+      referencia_id: armado.id,
+      costo_unitario: costoUnitarioKit,
+      fecha: datos.fecha,
+    })
+
+    return {
+      ok: true,
+      data: { armado: armado, kit_stock_actual: nuevoStockKit, kit_costo_promedio: nuevoCostoKit },
+    }
   } finally {
     lock.releaseLock()
   }

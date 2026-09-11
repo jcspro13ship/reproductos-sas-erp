@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import TablaEditable from "../../components/TablaEditable";
 import NuevoProducto from "./NuevoProducto";
+import ArmarKit from "./ArmarKit";
 
 export default function Inventario() {
   const [lineas, setLineas] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [mostrarNuevo, setMostrarNuevo] = useState(false);
+  const [mostrarArmarKit, setMostrarArmarKit] = useState(false);
 
   function cargarLineas() {
     api.list("LINEAS").then(setLineas);
@@ -18,10 +20,16 @@ export default function Inventario() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 40 }}>
-      <button className="boton" style={{ alignSelf: "flex-start" }} onClick={() => setMostrarNuevo((v) => !v)}>
-        {mostrarNuevo ? "Cancelar" : "+ Crear nuevo producto"}
-      </button>
+      <div style={{ display: "flex", gap: 12 }}>
+        <button className="boton" onClick={() => setMostrarNuevo((v) => !v)}>
+          {mostrarNuevo ? "Cancelar" : "+ Crear nuevo producto"}
+        </button>
+        <button className="boton-secundario boton" onClick={() => setMostrarArmarKit((v) => !v)}>
+          {mostrarArmarKit ? "Cancelar" : "Armar kit"}
+        </button>
+      </div>
       {mostrarNuevo && <NuevoProducto onCreado={() => setRefreshKey((k) => k + 1)} />}
+      {mostrarArmarKit && <ArmarKit onArmado={() => setRefreshKey((k) => k + 1)} />}
       <TablaEditable
         key={refreshKey}
         titulo="Productos"
@@ -35,6 +43,11 @@ export default function Inventario() {
           { key: "iva_pct", label: "IVA" },
           { key: "costo_promedio", label: "Costo promedio" },
           { key: "stock_actual", label: "Stock" },
+          {
+            key: "es_kit",
+            label: "Kit",
+            render: (fila) => (String(fila.es_kit) === "true" ? "Sí" : "No"),
+          },
           {
             key: "visible_catalogo",
             label: "Visible en catálogo",

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { generarCodigoProducto } from "../../lib/productos";
+import ComponentesKit from "../../components/ComponentesKit";
 
 export default function NuevoProducto({ onCreado }) {
   const [lineas, setLineas] = useState([]);
@@ -15,6 +16,8 @@ export default function NuevoProducto({ onCreado }) {
   const [ivaPct, setIvaPct] = useState("");
   const [listaId, setListaId] = useState("");
   const [precio, setPrecio] = useState("");
+  const [esKit, setEsKit] = useState(false);
+  const [componentes, setComponentes] = useState([{ producto_id: "", cantidad: 1 }]);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState(null);
   const [mensaje, setMensaje] = useState(null);
@@ -49,6 +52,13 @@ export default function NuevoProducto({ onCreado }) {
         return;
       }
 
+      const componentesValidos = componentes.filter((c) => c.producto_id && c.cantidad > 0);
+      if (esKit && componentesValidos.length === 0) {
+        setError("Agrega al menos un componente para el kit.");
+        setEnviando(false);
+        return;
+      }
+
       const producto = await api.create("PRODUCTOS", {
         id: codigoFinal,
         nombre,
@@ -59,6 +69,7 @@ export default function NuevoProducto({ onCreado }) {
         costo_promedio: 0,
         stock_actual: 0,
         visible_catalogo: "true",
+        es_kit: esKit ? "true" : "false",
       });
 
       if (listaId && precio !== "") {
@@ -69,7 +80,21 @@ export default function NuevoProducto({ onCreado }) {
         });
       }
 
-      setMensaje(`"${nombre}" (${producto.id}) se creó correctamente${listaId && precio !== "" ? " con su precio" : ""}.`);
+      // Uno por uno, no en paralelo: LockService serializa cada escritura en
+      // Apps Script, así que Promise.all no gana nada y solo complica los errores.
+      if (esKit) {
+        for (const c of componentesValidos) {
+          await api.create("KIT_COMPONENTES", {
+            kit_producto_id: producto.id,
+            producto_id: c.producto_id,
+            cantidad: c.cantidad,
+          });
+        }
+      }
+
+      setMensaje(
+        `"${nombre}" (${producto.id}) se creó correctamente${listaId && precio !== "" ? " con su precio" : ""}${esKit ? " y su receta de kit" : ""}.`
+      );
       setProductos((prev) => [...prev, producto]);
       setNombre("");
       setLineaId("");
@@ -80,6 +105,8 @@ export default function NuevoProducto({ onCreado }) {
       setIvaPct("");
       setListaId("");
       setPrecio("");
+      setEsKit(false);
+      setComponentes([{ producto_id: "", cantidad: 1 }]);
       onCreado?.();
     } catch (e) {
       setError(e.message);
@@ -91,7 +118,7 @@ export default function NuevoProducto({ onCreado }) {
   return (
     <form
       onSubmit={handleSubmit}
-      style={{ border: "1px solid var(--color-borde)", borderRadius: "var(--radio)", padding: 16, display: "flex", flexDirection: "column", gap: 12, maxWidth: 480 }}
+      style={{ border: "1px solid var(--color-borde)", borderRadius: "var(--radio)", padding: 16, display: "flex", flexDirection: "column", gap: 12, maxWidth: esKit ? 640 : 480 }}
     >
       <strong style={{ fontSize: 14 }}>Nuevo producto</strong>
       <label>
@@ -123,6 +150,19 @@ export default function NuevoProducto({ onCreado }) {
           Se genera solo según la línea elegida; puedes cambiarlo si lo necesitas.
         </span>
       </label>
+      <label style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <input type="checkbox" checked={esKit} onChange={(e) => setEsKit(e.target.checked)} style={{ width: "auto" }} />
+        Es un kit armado con otros productos
+      </label>
+      {esKit && (
+        <div style={{ padding: 12, background: "#f4f4f4", borderRadius: "var(--radio)" }}>
+          <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
+            ¿Con qué productos y en qué cantidad se arma una unidad de este kit? Al armar kits después, esto se
+            descuenta del inventario de cada uno.
+          </div>
+          <ComponentesKit componentes={componentes} productos={productos} onChange={setComponentes} />
+        </div>
+      )}
       <label>
         Foto (link de Drive o Imgur)
         <input value={imagen} onChange={(e) => setImagen(e.target.value)} />
