@@ -29,6 +29,13 @@
 // lo hubo. El costo promedio NO se revierte al eliminar una compra (es un promedio
 // ponderado; no se puede deshacer con exactitud si hubo compras de ese producto
 // después) — ajústalo a mano si hace falta.
+// POST { action: "guardarCotizacion", data: { cliente_id, vendedor_id, fecha, estado, lista_precio_id,
+//        tipo_venta, notas, items: [{ producto_id, cantidad, precio_unitario }] } }
+// Crea la cotización y todas sus líneas en una sola operación atómica (un solo
+// candado), en vez de que el frontend haga una llamada por cada producto —
+// con cotizaciones de muchos productos, una llamada por línea deja demasiadas
+// oportunidades para que algo falle a medio camino y la cotización quede
+// incompleta o sin guardar.
 // POST { action: "armarKit", data: { kit_producto_id, cantidad, fecha } }
 // Un "kit" es una fila más de PRODUCTOS (con es_kit=true) cuya receta vive en
 // KIT_COMPONENTES (kit_producto_id, producto_id, cantidad por unidad de kit).
@@ -111,6 +118,9 @@ function doPost(e) {
     }
     if (accion === 'armarKit') {
       return responder(armarKit(body.data || {}))
+    }
+    if (accion === 'guardarCotizacion') {
+      return responder({ ok: true, data: guardarCotizacion(body.data || {}) })
     }
     return responder({ ok: false, error: 'Acción POST no reconocida: ' + accion })
   } catch (err) {
@@ -342,6 +352,41 @@ function registrarVenta(datos) {
     }
 
     return { venta: venta, detalles: detalles, comision: comision, cxc: cxc, pago: pago }
+  } finally {
+    lock.releaseLock()
+  }
+}
+
+// Crea COTIZACIONES + todas sus COTIZACIONES_DETALLE en una sola operación con
+// un solo candado — antes el frontend hacía una llamada por cada línea, y con
+// cotizaciones de muchos productos eso dejaba demasiadas oportunidades para
+// que una sola llamada fallara y la cotización quedara incompleta o perdida.
+// A diferencia de registrarVenta, no toca inventario ni cartera — una
+// cotización no es una venta todavía.
+function guardarCotizacion(datos) {
+  var lock = LockService.getScriptLock()
+  lock.waitLock(10000)
+  try {
+    var cotizacion = crearFila('COTIZACIONES', {
+      cliente_id: datos.cliente_id,
+      vendedor_id: datos.vendedor_id,
+      fecha: datos.fecha,
+      estado: datos.estado || 'pendiente',
+      lista_precio_id: datos.lista_precio_id,
+      tipo_venta: datos.tipo_venta || '',
+      notas: datos.notas || '',
+    })
+
+    var detalles = (datos.items || []).map(function (item) {
+      return crearFila('COTIZACIONES_DETALLE', {
+        cotizacion_id: cotizacion.id,
+        producto_id: item.producto_id,
+        cantidad: item.cantidad,
+        precio_unitario: item.precio_unitario,
+      })
+    })
+
+    return { cotizacion: cotizacion, detalles: detalles }
   } finally {
     lock.releaseLock()
   }

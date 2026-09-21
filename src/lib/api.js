@@ -82,4 +82,5 @@ export const api = {
   eliminarVenta: (venta_id) => send("eliminarVenta", undefined, { data: { venta_id } }),
   eliminarCompra: (compra_id) => send("eliminarCompra", undefined, { data: { compra_id } }),
   armarKit: (data) => send("armarKit", undefined, { data }),
+  guardarCotizacion: (data) => send("guardarCotizacion", undefined, { data }),
 };

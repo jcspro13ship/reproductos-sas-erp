@@ -73,7 +73,12 @@ export default function NuevaCotizacion({ onGuardada }) {
       const itemsValidos = items.filter((i) => i.producto_id);
       if (itemsValidos.length === 0) throw new Error("Agrega al menos un producto");
 
-      const cotizacion = await api.create("COTIZACIONES", {
+      // Una sola llamada que crea la cotización y todas sus líneas de una vez
+      // en el servidor (en vez de una llamada por producto): con cotizaciones
+      // de muchos productos, tener que esperar decenas de llamadas seguidas
+      // dejaba demasiadas oportunidades para que una sola fallara a mitad de
+      // camino y la cotización quedara incompleta o sin guardar.
+      const { cotizacion } = await api.guardarCotizacion({
         cliente_id: clienteId,
         vendedor_id: sesion?.usuario?.id || "",
         fecha,
@@ -81,21 +86,8 @@ export default function NuevaCotizacion({ onGuardada }) {
         lista_precio_id: listaId,
         tipo_venta: tipoVenta,
         notas,
+        items: itemsValidos.map((i) => ({ producto_id: i.producto_id, cantidad: i.cantidad, precio_unitario: i.precio_unitario })),
       });
-
-      // Secuencial: Apps Script solo procesa una escritura a la vez (usa un
-      // candado por ejecución), así que mandar todas las filas en paralelo
-      // hace que se crucen y truene "tiempo de espera del candado agotado".
-      const detallesGuardados = [];
-      for (const i of itemsValidos) {
-        const detalle = await api.create("COTIZACIONES_DETALLE", {
-          cotizacion_id: cotizacion.id,
-          producto_id: i.producto_id,
-          cantidad: i.cantidad,
-          precio_unitario: i.precio_unitario,
-        });
-        detallesGuardados.push(detalle);
-      }
 
       setUltimoGuardadoId(cotizacion.id);
       onGuardada?.({
