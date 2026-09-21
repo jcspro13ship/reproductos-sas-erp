@@ -5,7 +5,7 @@ import FilasItems from "../../components/FilasItems";
 import BuscadorSelect from "../../components/BuscadorSelect";
 import { useAuth } from "../../context/AuthContext";
 
-export default function NuevaCotizacion({ onGuardada }) {
+export default function NuevaCotizacion({ onGuardada, paraEditar, onCancelarEdicion }) {
   const { sesion } = useAuth();
   const [clientes, setClientes] = useState([]);
   const [productos, setProductos] = useState([]);
@@ -22,6 +22,35 @@ export default function NuevaCotizacion({ onGuardada }) {
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState(null);
   const [ultimoGuardadoId, setUltimoGuardadoId] = useState(null);
+  const editandoId = paraEditar?.cotizacion?.id || null;
+
+  // Cuando llega una cotización para editar (desde el botón "Editar" de la
+  // tabla), se rellena el formulario con sus datos.
+  useEffect(() => {
+    if (!paraEditar) return;
+    const { cotizacion, items: itemsExistentes } = paraEditar;
+    setClienteId(cotizacion.cliente_id ? String(cotizacion.cliente_id) : "");
+    setListaId(cotizacion.lista_precio_id ? String(cotizacion.lista_precio_id) : "");
+    setTipoVenta(cotizacion.tipo_venta || "");
+    setFecha(cotizacion.fecha || hoyDDMMAAAA());
+    setNotas(cotizacion.notas || "");
+    setItems(
+      itemsExistentes.length > 0
+        ? itemsExistentes.map((i) => ({ producto_id: i.producto_id, cantidad: Number(i.cantidad), precio_unitario: Number(i.precio_unitario) }))
+        : [{ producto_id: "", cantidad: 1, precio_unitario: 0 }]
+    );
+    setUltimoGuardadoId(null);
+    setError(null);
+  }, [paraEditar]);
+
+  function cancelarEdicion() {
+    setClienteId("");
+    setTipoVenta("");
+    setNotas("");
+    setItems([{ producto_id: "", cantidad: 1, precio_unitario: 0 }]);
+    setError(null);
+    onCancelarEdicion?.();
+  }
 
   useEffect(() => {
     Promise.all([
@@ -73,21 +102,38 @@ export default function NuevaCotizacion({ onGuardada }) {
       const itemsValidos = items.filter((i) => i.producto_id);
       if (itemsValidos.length === 0) throw new Error("Agrega al menos un producto");
 
-      // Una sola llamada que crea la cotización y todas sus líneas de una vez
-      // en el servidor (en vez de una llamada por producto): con cotizaciones
-      // de muchos productos, tener que esperar decenas de llamadas seguidas
-      // dejaba demasiadas oportunidades para que una sola fallara a mitad de
-      // camino y la cotización quedara incompleta o sin guardar.
-      const { cotizacion } = await api.guardarCotizacion({
-        cliente_id: clienteId,
-        vendedor_id: sesion?.usuario?.id || "",
-        fecha,
-        estado: "pendiente",
-        lista_precio_id: listaId,
-        tipo_venta: tipoVenta,
-        notas,
-        items: itemsValidos.map((i) => ({ producto_id: i.producto_id, cantidad: i.cantidad, precio_unitario: i.precio_unitario })),
-      });
+      const itemsParaEnviar = itemsValidos.map((i) => ({ producto_id: i.producto_id, cantidad: i.cantidad, precio_unitario: i.precio_unitario }));
+
+      // Una sola llamada que crea/actualiza la cotización y todas sus líneas de
+      // una vez en el servidor (en vez de una llamada por producto): con
+      // cotizaciones de muchos productos, tener que esperar decenas de llamadas
+      // seguidas dejaba demasiadas oportunidades para que una sola fallara a
+      // mitad de camino y la cotización quedara incompleta o sin guardar.
+      const cotizacion = editandoId
+        ? (
+            await api.actualizarCotizacion({
+              id: editandoId,
+              cliente_id: clienteId,
+              vendedor_id: sesion?.usuario?.id || "",
+              fecha,
+              lista_precio_id: listaId,
+              tipo_venta: tipoVenta,
+              notas,
+              items: itemsParaEnviar,
+            })
+          ).cotizacion
+        : (
+            await api.guardarCotizacion({
+              cliente_id: clienteId,
+              vendedor_id: sesion?.usuario?.id || "",
+              fecha,
+              estado: "pendiente",
+              lista_precio_id: listaId,
+              tipo_venta: tipoVenta,
+              notas,
+              items: itemsParaEnviar,
+            })
+          ).cotizacion;
 
       setUltimoGuardadoId(cotizacion.id);
       onGuardada?.({
@@ -103,6 +149,7 @@ export default function NuevaCotizacion({ onGuardada }) {
       setTipoVenta("");
       setNotas("");
       setItems([{ producto_id: "", cantidad: 1, precio_unitario: 0 }]);
+      if (editandoId) onCancelarEdicion?.();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -123,7 +170,7 @@ export default function NuevaCotizacion({ onGuardada }) {
         className="no-print"
         style={{ border: "1px solid var(--color-borde)", borderRadius: "var(--radio)", padding: 16, display: "flex", flexDirection: "column", gap: 12 }}
       >
-        <strong style={{ fontSize: 14 }}>Nueva cotización</strong>
+        <strong style={{ fontSize: 14 }}>{editandoId ? `Editando cotización ${editandoId}` : "Nueva cotización"}</strong>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <label style={{ flex: 1, minWidth: 180 }}>
             Cliente
@@ -185,9 +232,16 @@ export default function NuevaCotizacion({ onGuardada }) {
           )}
         </p>
         {error && <p style={{ color: "crimson", fontSize: 13 }}>{error}</p>}
-        <button className="boton" type="submit" disabled={enviando} style={{ alignSelf: "flex-start" }}>
-          {enviando ? "Guardando..." : "Guardar cotización"}
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="boton" type="submit" disabled={enviando} style={{ alignSelf: "flex-start" }}>
+            {enviando ? "Guardando..." : editandoId ? "Guardar cambios" : "Guardar cotización"}
+          </button>
+          {editandoId && (
+            <button type="button" className="boton-secundario boton" disabled={enviando} onClick={cancelarEdicion}>
+              Cancelar edición
+            </button>
+          )}
+        </div>
       </form>
 
       {ultimoGuardadoId && (

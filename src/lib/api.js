@@ -83,4 +83,5 @@ export const api = {
   eliminarCompra: (compra_id) => send("eliminarCompra", undefined, { data: { compra_id } }),
   armarKit: (data) => send("armarKit", undefined, { data }),
   guardarCotizacion: (data) => send("guardarCotizacion", undefined, { data }),
+  actualizarCotizacion: (data) => send("actualizarCotizacion", undefined, { data }),
 };

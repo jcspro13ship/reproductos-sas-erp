@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import NuevaVenta from "./NuevaVenta";
 import NuevaCotizacion from "./NuevaCotizacion";
 import CotizacionesTabla from "./CotizacionesTabla";
@@ -12,6 +12,13 @@ export default function Ventas() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [cotizacionParaImprimir, setCotizacionParaImprimir] = useState(null);
   const [ventaParaImprimir, setVentaParaImprimir] = useState(null);
+  const [cotizacionParaEditar, setCotizacionParaEditar] = useState(null);
+  const formularioCotizacionRef = useRef(null);
+
+  function editarCotizacion(datos) {
+    setCotizacionParaEditar(datos);
+    formularioCotizacionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   function mostrarCotizacion(datos) {
     setVentaParaImprimir(null);
@@ -32,18 +39,23 @@ export default function Ventas() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
-      <NuevaCotizacion
-        onGuardada={(datos) => {
-          mostrarCotizacion(datos);
-          setRefreshKey((k) => k + 1);
-        }}
-      />
+      <div ref={formularioCotizacionRef}>
+        <NuevaCotizacion
+          paraEditar={cotizacionParaEditar}
+          onCancelarEdicion={() => setCotizacionParaEditar(null)}
+          onGuardada={(datos) => {
+            mostrarCotizacion(datos);
+            setRefreshKey((k) => k + 1);
+          }}
+        />
+      </div>
       <div className="no-print" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
         <NuevaVenta onCreada={() => setRefreshKey((k) => k + 1)} />
         <CotizacionesTabla
           key={`cot-${refreshKey}`}
           onConvertida={() => setRefreshKey((k) => k + 1)}
           onVerImprimir={verImprimirCotizacion}
+          onEditar={editarCotizacion}
         />
         <VentasTabla key={`ven-${refreshKey}`} onVerImprimir={verImprimirVenta} />
       </div>

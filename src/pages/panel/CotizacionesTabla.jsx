@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 
-export default function CotizacionesTabla({ onConvertida, onVerImprimir }) {
+export default function CotizacionesTabla({ onConvertida, onVerImprimir, onEditar }) {
   const { sesion } = useAuth();
   const [cotizaciones, setCotizaciones] = useState([]);
   const [detalle, setDetalle] = useState([]);
@@ -66,6 +66,13 @@ export default function CotizacionesTabla({ onConvertida, onVerImprimir }) {
     }
   }
 
+  function editar(cotizacion) {
+    const items = detalle
+      .filter((d) => d.cotizacion_id === cotizacion.id)
+      .map((d) => ({ producto_id: d.producto_id, cantidad: d.cantidad, precio_unitario: d.precio_unitario }));
+    onEditar?.({ cotizacion, items });
+  }
+
   function verImprimir(cotizacion) {
     const items = detalle
       .filter((d) => d.cotizacion_id === cotizacion.id)
@@ -113,13 +120,18 @@ export default function CotizacionesTabla({ onConvertida, onVerImprimir }) {
                     Ver / Imprimir
                   </button>
                   {c.estado === "pendiente" && (
-                    <button
-                      className="boton-secundario boton"
-                      disabled={convirtiendoId === c.id}
-                      onClick={() => convertir(c)}
-                    >
-                      {convirtiendoId === c.id ? "Convirtiendo..." : "Convertir a venta"}
-                    </button>
+                    <>
+                      <button className="boton-secundario boton" onClick={() => editar(c)}>
+                        Editar
+                      </button>
+                      <button
+                        className="boton-secundario boton"
+                        disabled={convirtiendoId === c.id}
+                        onClick={() => convertir(c)}
+                      >
+                        {convirtiendoId === c.id ? "Convirtiendo..." : "Convertir a venta"}
+                      </button>
+                    </>
                   )}
                 </td>
               </tr>

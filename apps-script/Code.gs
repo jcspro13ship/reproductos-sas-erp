@@ -36,6 +36,11 @@
 // con cotizaciones de muchos productos, una llamada por línea deja demasiadas
 // oportunidades para que algo falle a medio camino y la cotización quede
 // incompleta o sin guardar.
+// POST { action: "actualizarCotizacion", data: { id, cliente_id, vendedor_id, fecha,
+//        lista_precio_id, tipo_venta, notas, items: [{ producto_id, cantidad, precio_unitario }] } }
+// Reemplaza los datos y TODAS las líneas de una cotización ya creada (borra
+// las líneas viejas y crea las nuevas) — para corregir/completar una
+// cotización existente en vez de crear otra cada vez.
 // POST { action: "armarKit", data: { kit_producto_id, cantidad, fecha } }
 // Un "kit" es una fila más de PRODUCTOS (con es_kit=true) cuya receta vive en
 // KIT_COMPONENTES (kit_producto_id, producto_id, cantidad por unidad de kit).
@@ -121,6 +126,9 @@ function doPost(e) {
     }
     if (accion === 'guardarCotizacion') {
       return responder({ ok: true, data: guardarCotizacion(body.data || {}) })
+    }
+    if (accion === 'actualizarCotizacion') {
+      return responder(actualizarCotizacion(body.data || {}))
     }
     return responder({ ok: false, error: 'Acción POST no reconocida: ' + accion })
   } catch (err) {
@@ -387,6 +395,49 @@ function guardarCotizacion(datos) {
     })
 
     return { cotizacion: cotizacion, detalles: detalles }
+  } finally {
+    lock.releaseLock()
+  }
+}
+
+// Actualiza una cotización existente: los datos de encabezado y TODAS sus
+// líneas (borra las que había y crea las nuevas con lo que llegó). Así, si
+// algo queda mal o falta un producto, se corrige la misma cotización en vez
+// de crear otra — evita que queden varias versiones sueltas de lo mismo.
+function actualizarCotizacion(datos) {
+  var lock = LockService.getScriptLock()
+  lock.waitLock(10000)
+  try {
+    var cotizacionId = datos.id
+    var cotizacion = buscarPorId('COTIZACIONES', cotizacionId)
+    if (!cotizacion) return { ok: false, error: 'Cotización no encontrada: ' + cotizacionId }
+
+    var actualizada = actualizarFila('COTIZACIONES', cotizacionId, {
+      cliente_id: datos.cliente_id,
+      vendedor_id: datos.vendedor_id,
+      fecha: datos.fecha,
+      lista_precio_id: datos.lista_precio_id,
+      tipo_venta: datos.tipo_venta || '',
+      notas: datos.notas || '',
+    })
+
+    var detallesViejos = leerTodo('COTIZACIONES_DETALLE').filter(function (d) {
+      return String(d.cotizacion_id) === String(cotizacionId)
+    })
+    detallesViejos.forEach(function (d) {
+      borrarFila('COTIZACIONES_DETALLE', d.id)
+    })
+
+    var detalles = (datos.items || []).map(function (item) {
+      return crearFila('COTIZACIONES_DETALLE', {
+        cotizacion_id: cotizacionId,
+        producto_id: item.producto_id,
+        cantidad: item.cantidad,
+        precio_unitario: item.precio_unitario,
+      })
+    })
+
+    return { ok: true, data: { cotizacion: actualizada, detalles: detalles } }
   } finally {
     lock.releaseLock()
   }
