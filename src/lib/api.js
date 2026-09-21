@@ -31,8 +31,10 @@ async function request(params) {
   const url = new URL(API_URL);
   Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
 
-  // list/get no modifican nada, así que si la respuesta no es JSON válido
-  // (tropiezo puntual) se puede reintentar sin ningún riesgo.
+  // list/get no modifican nada, así que ante CUALQUIER error (JSON inválido,
+  // o el "Acción GET no reconocida: undefined" que sale cuando Google pierde
+  // el parámetro action en el camino) se puede reintentar sin ningún riesgo,
+  // no solo ante el caso puntual de respuesta no-JSON.
   const intentos = 3;
   for (let intento = 0; intento < intentos; intento++) {
     if (intento > 0) await esperar(intento * 1500);
@@ -40,7 +42,7 @@ async function request(params) {
       const res = await fetch(url.toString());
       return await interpretar(res);
     } catch (e) {
-      if (e.message !== MENSAJE_SIN_CONEXION || intento === intentos - 1) throw e;
+      if (intento === intentos - 1) throw e;
     }
   }
 }
