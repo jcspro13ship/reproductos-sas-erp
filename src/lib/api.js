@@ -1,4 +1,5 @@
 import { API_URL } from "../config";
+import { obtenerDeCache, guardarEnCache, obtenerEnVuelo, registrarEnVuelo, limpiarCache } from "./cache";
 
 function esperar(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -63,11 +64,38 @@ async function send(action, sheet, payload = {}) {
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify({ action, sheet, ...payload }),
   });
-  return interpretar(res);
+  const resultado = await interpretar(res);
+  // Cualquier acción que guarda algo puede haber tocado varias pestañas a la
+  // vez (una venta cambia VENTAS, stock de PRODUCTOS, COMISIONES, CXC...), así
+  // que en vez de llevar la cuenta de qué toca cada acción, se limpia todo el
+  // caché — la próxima lectura de cualquier hoja vuelve a pedirse fresca.
+  limpiarCache();
+  return resultado;
+}
+
+// list() se guarda en caché (unos minutos, o hasta que algo se guarde desde
+// la app) porque es, por mucho, la llamada más repetida: casi cada página del
+// panel pide productos/clientes/líneas/etc. de nuevo, aunque otra página ya
+// los haya pedido hace unos segundos. Si dos componentes piden la misma hoja
+// al mismo tiempo (típico al cargar una página con varias secciones),
+// comparten un solo pedido en vez de duplicarlo.
+async function list(sheet) {
+  const enCache = obtenerDeCache(sheet);
+  if (enCache !== undefined) return enCache;
+
+  const yaEnVuelo = obtenerEnVuelo(sheet);
+  if (yaEnVuelo) return yaEnVuelo;
+
+  const promesa = request({ action: "list", sheet }).then((datos) => {
+    guardarEnCache(sheet, datos);
+    return datos;
+  });
+  registrarEnVuelo(sheet, promesa);
+  return promesa;
 }
 
 export const api = {
-  list: (sheet) => request({ action: "list", sheet }),
+  list,
   get: (sheet, id) => request({ action: "get", sheet, id }),
   create: (sheet, data) => send("create", sheet, { data }),
   update: (sheet, id, data) => send("update", sheet, { id, data }),
