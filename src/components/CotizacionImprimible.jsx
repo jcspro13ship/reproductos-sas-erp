@@ -1,12 +1,19 @@
 import { resolverImagenDrive } from "../lib/imagenDrive";
 
+const NOMBRE_MONEDA = {
+  COP: "pesos colombianos",
+  USD: "dólares",
+};
+
 export default function CotizacionImprimible({ empresa, cotizacion, cliente, lista, items, notas, totalUsd }) {
   const logoUrl = resolverImagenDrive(empresa?.logo_url);
   const total = items.reduce((s, i) => s + (Number(i.cantidad) || 0) * (Number(i.precio_unitario) || 0), 0);
   const moneda = lista?.moneda || empresa?.moneda_base || "COP";
 
+  // Sin la moneda al lado de cada valor — se aclara una sola vez arriba, para
+  // no repetir "COP" en cada fila de la tabla.
   function formatoMonto(n) {
-    return `$${Number(n || 0).toLocaleString("es-CO")} ${moneda}`;
+    return `$${Number(n || 0).toLocaleString("es-CO")}`;
   }
 
   return (
@@ -29,6 +36,10 @@ export default function CotizacionImprimible({ empresa, cotizacion, cliente, lis
           <div style={{ fontSize: 12, opacity: 0.7 }}>{cotizacion?.fecha}</div>
         </div>
       </div>
+
+      <p style={{ fontSize: 12, opacity: 0.7, marginBottom: 16 }}>
+        Cotización en {NOMBRE_MONEDA[moneda] || moneda} ({moneda})
+      </p>
 
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 11, textTransform: "uppercase", opacity: 0.6, marginBottom: 4 }}>Cliente</div>
