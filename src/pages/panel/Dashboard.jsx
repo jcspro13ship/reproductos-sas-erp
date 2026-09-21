@@ -18,38 +18,17 @@ import KpiCard from "../../components/KpiCard";
 import GraficoBarras from "../../components/GraficoBarras";
 import PeriodoSelector from "../../components/PeriodoSelector";
 
+// Cada bloque pide sus propios datos y se muestra apenas están listos, en vez
+// de esperar a que las 9 hojas del tablero completo hayan llegado antes de
+// mostrar cualquier cosa. Si dos bloques piden la misma hoja (ej. PRODUCTOS),
+// el caché de api.list la comparte en una sola llamada — ver src/lib/cache.js.
 export default function Dashboard() {
   const { sesion, hasAccess } = useAuth();
-  const [datos, setDatos] = useState(null);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState(null);
   const primerPreset = PRESETS_PERIODO[0];
   const [periodo, setPeriodo] = useState(() => {
     const [desde, hasta] = primerPreset.rango();
     return { desde, hasta, etiqueta: primerPreset.etiqueta, presetId: primerPreset.id };
   });
-
-  useEffect(() => {
-    Promise.all([
-      api.list("PRODUCTOS"),
-      api.list("VENTAS"),
-      api.list("VENTAS_DETALLE"),
-      api.list("COMPRAS"),
-      api.list("COMPRAS_DETALLE"),
-      api.list("COMISIONES"),
-      api.list("CXC"),
-      api.list("CXP"),
-      api.list("PAGOS"),
-    ])
-      .then(([productos, ventas, ventasDetalle, compras, comprasDetalle, comisiones, cxc, cxp, pagos]) => {
-        setDatos({ productos, ventas, ventasDetalle, compras, comprasDetalle, comisiones, cxc, cxp, pagos });
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setCargando(false));
-  }, []);
-
-  if (cargando) return <p>Cargando...</p>;
-  if (error) return <p style={{ color: "crimson" }}>{error}</p>;
 
   const usuarioId = sesion?.usuario?.id;
   const esAdmin = hasAccess("configuracion", "total");
@@ -57,8 +36,6 @@ export default function Dashboard() {
   // no tiene acceso propio a compras ni a CxP — con eso distinguimos su vista acotada
   // a "lo mío" de la vista completa que ven los demás roles con acceso al módulo.
   const soloMisVentas = !esAdmin && hasAccess("ventas", "ver") && !hasAccess("cxp", "ver") && !hasAccess("compras", "ver");
-
-  const { productos, ventas, ventasDetalle, compras, comprasDetalle, comisiones, cxc, cxp, pagos } = datos;
 
   return (
     <div>
@@ -68,29 +45,20 @@ export default function Dashboard() {
       <PeriodoSelector presetActivo={periodo.presetId} onCambiar={setPeriodo} />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-        {hasAccess("cxc", "ver") && hasAccess("cxp", "ver") && <BloqueFlujoCaja pagos={pagos} periodo={periodo} />}
+        {hasAccess("cxc", "ver") && hasAccess("cxp", "ver") && <BloqueFlujoCaja periodo={periodo} />}
 
         {hasAccess("ventas", "ver") && (
-          <BloqueVentas
-            ventas={ventas}
-            ventasDetalle={ventasDetalle}
-            comisiones={comisiones}
-            productos={productos}
-            usuarioId={usuarioId}
-            soloPropias={soloMisVentas}
-            periodo={periodo}
-          />
+          <BloqueVentas usuarioId={usuarioId} soloPropias={soloMisVentas} periodo={periodo} />
         )}
 
-        {hasAccess("inventario", "ver") && <BloqueInventario productos={productos} />}
+        {hasAccess("inventario", "ver") && <BloqueInventario />}
 
-        {hasAccess("compras", "ver") && <BloqueCompras compras={compras} comprasDetalle={comprasDetalle} periodo={periodo} />}
+        {hasAccess("compras", "ver") && <BloqueCompras periodo={periodo} />}
 
         {(hasAccess("cxc", "ver") || hasAccess("cxp", "ver")) && (
           <BloqueCartera
-            cxc={hasAccess("cxc", "ver") ? cxc : null}
-            cxp={hasAccess("cxp", "ver") ? cxp : null}
-            ventas={ventas}
+            mostrarCxc={hasAccess("cxc", "ver")}
+            mostrarCxp={hasAccess("cxp", "ver")}
             vendedorId={soloMisVentas ? usuarioId : null}
           />
         )}
@@ -99,21 +67,56 @@ export default function Dashboard() {
   );
 }
 
-function BloqueVentas({ ventas, ventasDetalle, comisiones, productos, usuarioId, soloPropias, periodo }) {
+function SeccionCargando({ titulo }) {
+  return (
+    <section>
+      <strong style={{ fontSize: 14 }}>{titulo}</strong>
+      <p style={{ fontSize: 13, opacity: 0.6, marginTop: 8 }}>Cargando...</p>
+    </section>
+  );
+}
+
+function SeccionError({ titulo, error }) {
+  return (
+    <section>
+      <strong style={{ fontSize: 14 }}>{titulo}</strong>
+      <p style={{ fontSize: 13, color: "crimson", marginTop: 8 }}>{error}</p>
+    </section>
+  );
+}
+
+function BloqueVentas({ usuarioId, soloPropias, periodo }) {
+  const [datos, setDatos] = useState(null);
+  const [error, setError] = useState(null);
+  const titulo = soloPropias ? "Mi desempeño" : "Ventas";
+
+  useEffect(() => {
+    Promise.all([api.list("VENTAS"), api.list("VENTAS_DETALLE"), api.list("COMISIONES"), api.list("PRODUCTOS")])
+      .then(([ventas, ventasDetalle, comisiones, productos]) => setDatos({ ventas, ventasDetalle, comisiones, productos }))
+      .catch((e) => setError(e.message));
+  }, []);
+
+  if (error) return <SeccionError titulo={titulo} error={error} />;
+  if (!datos) return <SeccionCargando titulo={titulo} />;
+
   const vendedorId = soloPropias ? usuarioId : undefined;
-  const resumen = resumenVentas(ventas, ventasDetalle, { desde: periodo.desde, hasta: periodo.hasta, vendedorId });
-  const porMes = ventasPorPeriodo(ventas, ventasDetalle, { desde: periodo.desde, hasta: periodo.hasta, vendedorId });
-  const topProductos = topProductosVendidos(ventas, ventasDetalle, productos, { desde: periodo.desde, hasta: periodo.hasta, vendedorId });
+  const resumen = resumenVentas(datos.ventas, datos.ventasDetalle, { desde: periodo.desde, hasta: periodo.hasta, vendedorId });
+  const porMes = ventasPorPeriodo(datos.ventas, datos.ventasDetalle, { desde: periodo.desde, hasta: periodo.hasta, vendedorId });
+  const topProductos = topProductosVendidos(datos.ventas, datos.ventasDetalle, datos.productos, {
+    desde: periodo.desde,
+    hasta: periodo.hasta,
+    vendedorId,
+  });
 
   return (
     <section>
-      <strong style={{ fontSize: 14 }}>{soloPropias ? "Mi desempeño" : "Ventas"}</strong>
+      <strong style={{ fontSize: 14 }}>{titulo}</strong>
       <p style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>Período: {periodo.etiqueta}</p>
       <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
         <KpiCard etiqueta={soloPropias ? "Mis ventas" : "Ventas"} valor={resumen.cantidad} />
         <KpiCard etiqueta="Total vendido" valor={formatoMoneda(resumen.total)} />
         {soloPropias && (
-          <KpiCard etiqueta="Mi comisión pendiente (todo)" valor={formatoMoneda(comisionPendiente(comisiones, usuarioId))} />
+          <KpiCard etiqueta="Mi comisión pendiente (todo)" valor={formatoMoneda(comisionPendiente(datos.comisiones, usuarioId))} />
         )}
       </div>
 
@@ -135,7 +138,17 @@ function BloqueVentas({ ventas, ventasDetalle, comisiones, productos, usuarioId,
   );
 }
 
-function BloqueInventario({ productos }) {
+function BloqueInventario() {
+  const [productos, setProductos] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    api.list("PRODUCTOS").then(setProductos).catch((e) => setError(e.message));
+  }, []);
+
+  if (error) return <SeccionError titulo="Inventario" error={error} />;
+  if (!productos) return <SeccionCargando titulo="Inventario" />;
+
   const enNegativo = productosEnNegativo(productos);
   return (
     <section>
@@ -166,8 +179,20 @@ function BloqueInventario({ productos }) {
   );
 }
 
-function BloqueCompras({ compras, comprasDetalle, periodo }) {
-  const resumen = resumenCompras(compras, comprasDetalle, { desde: periodo.desde, hasta: periodo.hasta });
+function BloqueCompras({ periodo }) {
+  const [datos, setDatos] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    Promise.all([api.list("COMPRAS"), api.list("COMPRAS_DETALLE")])
+      .then(([compras, comprasDetalle]) => setDatos({ compras, comprasDetalle }))
+      .catch((e) => setError(e.message));
+  }, []);
+
+  if (error) return <SeccionError titulo="Compras" error={error} />;
+  if (!datos) return <SeccionCargando titulo="Compras" />;
+
+  const resumen = resumenCompras(datos.compras, datos.comprasDetalle, { desde: periodo.desde, hasta: periodo.hasta });
   return (
     <section>
       <strong style={{ fontSize: 14 }}>Compras</strong>
@@ -180,7 +205,17 @@ function BloqueCompras({ compras, comprasDetalle, periodo }) {
   );
 }
 
-function BloqueFlujoCaja({ pagos, periodo }) {
+function BloqueFlujoCaja({ periodo }) {
+  const [pagos, setPagos] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    api.list("PAGOS").then(setPagos).catch((e) => setError(e.message));
+  }, []);
+
+  if (error) return <SeccionError titulo="Flujo de caja" error={error} />;
+  if (!pagos) return <SeccionCargando titulo="Flujo de caja" />;
+
   const flujo = resumenFlujoCaja(pagos, { desde: periodo.desde, hasta: periodo.hasta });
   return (
     <section>
@@ -197,14 +232,31 @@ function BloqueFlujoCaja({ pagos, periodo }) {
   );
 }
 
-function BloqueCartera({ cxc, cxp, ventas, vendedorId }) {
-  const resumenCxc = cxc && resumenCartera(cxc, { ventas, vendedorId });
-  const resumenCxp = cxp && resumenCartera(cxp);
-  const porVencerCxp = cxp && porVencerEnDias(cxp, 7);
+function BloqueCartera({ mostrarCxc, mostrarCxp, vendedorId }) {
+  const [datos, setDatos] = useState(null);
+  const [error, setError] = useState(null);
+  const titulo = vendedorId ? "Mi cartera" : "Cartera";
+
+  useEffect(() => {
+    Promise.all([
+      mostrarCxc ? api.list("CXC") : Promise.resolve(null),
+      mostrarCxp ? api.list("CXP") : Promise.resolve(null),
+      mostrarCxc && vendedorId ? api.list("VENTAS") : Promise.resolve(null),
+    ])
+      .then(([cxc, cxp, ventas]) => setDatos({ cxc, cxp, ventas }))
+      .catch((e) => setError(e.message));
+  }, [mostrarCxc, mostrarCxp, vendedorId]);
+
+  if (error) return <SeccionError titulo={titulo} error={error} />;
+  if (!datos) return <SeccionCargando titulo={titulo} />;
+
+  const resumenCxc = datos.cxc && resumenCartera(datos.cxc, { ventas: datos.ventas, vendedorId });
+  const resumenCxp = datos.cxp && resumenCartera(datos.cxp);
+  const porVencerCxp = datos.cxp && porVencerEnDias(datos.cxp, 7);
 
   return (
     <section>
-      <strong style={{ fontSize: 14 }}>{vendedorId ? "Mi cartera" : "Cartera"}</strong>
+      <strong style={{ fontSize: 14 }}>{titulo}</strong>
       <p style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>Saldo actual (no cambia con el período elegido).</p>
       <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
         {resumenCxc && (
