@@ -8,3 +8,36 @@ export function compartirProducto(producto) {
   const texto = encodeURIComponent(lineas.join("\n"));
   window.open(`https://wa.me/?text=${texto}`, "_blank");
 }
+
+// Enlace limpio del catálogo (carpeta /catalogo/, con vista previa para redes
+// sociales). Se desprende de la ruta actual para funcionar igual en
+// GitHub Pages que con dominio propio.
+export function enlaceCatalogo() {
+  const base = `${window.location.origin}${window.location.pathname.replace(/[^/]*$/, "")}`;
+  return `${base}catalogo/`;
+}
+
+// En celular abre el menú de compartir del sistema (WhatsApp, Instagram,
+// Facebook...); en computador copia el enlace. Devuelve un texto para avisar.
+export async function compartirCatalogo() {
+  const url = enlaceCatalogo();
+  const datos = {
+    title: "Reproduuctos SAS — Catálogo",
+    text: "Catálogo de productos de reproducción equina. Consulta precios y haz tu pedido por WhatsApp.",
+    url,
+  };
+  if (navigator.share) {
+    try {
+      await navigator.share(datos);
+      return null;
+    } catch (e) {
+      if (e.name === "AbortError") return null;
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    return "Enlace copiado. Pégalo en tu red social.";
+  } catch {
+    return `Copia este enlace: ${url}`;
+  }
+}

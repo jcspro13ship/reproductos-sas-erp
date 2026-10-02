@@ -36,6 +36,11 @@ export default function Inventario() {
         sheet="PRODUCTOS"
         permitirCrear={false}
         buscarEn={["id", "nombre"]}
+        eliminar={{
+          onEliminar: (fila) => api.eliminarProducto(fila.id),
+          confirmar: (fila) =>
+            `¿Eliminar "${fila.nombre}" (${fila.id})? Solo se puede si nunca se ha vendido, comprado ni cotizado; se borran también sus precios. Si solo no lo quieres mostrar, ponlo en "No" en Visible en catálogo. No se puede deshacer.`,
+        }}
         columnas={[
           { key: "id", label: "ID" },
           { key: "nombre", label: "Producto" },

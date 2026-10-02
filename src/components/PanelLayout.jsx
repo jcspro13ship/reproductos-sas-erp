@@ -2,6 +2,7 @@ import { Link, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useEmpresa } from "../context/EmpresaContext";
 import { resolverImagenDrive } from "../lib/imagenDrive";
+import { compartirCatalogo } from "../lib/compartir";
 
 export const MODULOS_PANEL = [
   { path: "/panel", label: "Tablero de control", modulo: "tablero" },
@@ -66,6 +67,16 @@ export default function PanelLayout() {
         >
           Ver catálogo público ↗
         </Link>
+        <button
+          type="button"
+          onClick={async () => {
+            const aviso = await compartirCatalogo();
+            if (aviso) window.alert(aviso);
+          }}
+          style={{ padding: "8px 10px", borderRadius: 6, fontSize: 14, opacity: 0.75, background: "none", border: "none", textAlign: "left", cursor: "pointer", color: "inherit" }}
+        >
+          Compartir catálogo en redes
+        </button>
         <div style={{ marginTop: "auto", fontSize: 13, opacity: 0.8 }}>
           <div>{sesion?.usuario?.nombre}</div>
           <Link to="/panel/cambiar-clave" style={{ display: "block", fontSize: 12, marginTop: 4 }}>

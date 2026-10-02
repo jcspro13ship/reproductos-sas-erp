@@ -48,29 +48,59 @@ async function request(params) {
   }
 }
 
+const SIN_REINTENTO = new Set(["login", "loginCliente", "cambiarClave"]);
+const MENSAJE_NO_CONFIRMADO =
+  "No se pudo confirmar si se guardó (Google no devolvió la respuesta). Revisa la lista antes de volver a intentarlo, para no duplicarlo.";
+
+function nuevoRequestId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+// Errores en los que no se sabe si la acción llegó a ejecutarse: la respuesta
+// se perdió en el camino (a veces sale como "Acción GET no reconocida"), pero
+// el guardado pudo haberse hecho.
+function respuestaPerdida(e) {
+  return e instanceof TypeError || e.message === MENSAJE_SIN_CONEXION || /Acción GET no reconocida/.test(e.message);
+}
+
 async function send(action, sheet, payload = {}) {
   if (!API_URL) {
     throw new Error(
       "VITE_API_URL no está configurada. Define la URL del Web App de Apps Script en .env.local"
     );
   }
-  // Estas acciones sí cambian datos (registran una venta, crean una fila...),
-  // así que a diferencia de list/get NO se reintentan solas: si el problema
-  // fue que la respuesta no llegó pero la acción sí se alcanzó a ejecutar,
-  // reintentar podría duplicarla. Se le avisa a la persona con un mensaje
-  // claro para que decida si repetir la acción.
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ action, sheet, ...payload }),
-  });
-  const resultado = await interpretar(res);
-  // Cualquier acción que guarda algo puede haber tocado varias pestañas a la
-  // vez (una venta cambia VENTAS, stock de PRODUCTOS, COMISIONES, CXC...), así
-  // que en vez de llevar la cuenta de qué toca cada acción, se limpia todo el
-  // caché — la próxima lectura de cualquier hoja vuelve a pedirse fresca.
-  limpiarCache();
-  return resultado;
+  // Cada acción que guarda algo lleva un request_id: el backend (ver
+  // ejecutarUnaSolaVez en Code.gs) recuerda las que ya ejecutó, así que si la
+  // respuesta se pierde se puede reintentar con el mismo id sin que se guarde
+  // dos veces. Antes un error de esos hacía que la persona le diera "Guardar"
+  // otra vez y quedaran cotizaciones o clientes repetidos.
+  const idempotente = !SIN_REINTENTO.has(action);
+  const requestId = idempotente ? nuevoRequestId() : undefined;
+  const intentos = idempotente ? 3 : 1;
+
+  try {
+    for (let intento = 0; intento < intentos; intento++) {
+      if (intento > 0) await esperar(intento * 2000);
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action, sheet, request_id: requestId, ...payload }),
+        });
+        return await interpretar(res);
+      } catch (e) {
+        if (!idempotente || !respuestaPerdida(e)) throw e;
+        if (intento === intentos - 1) throw new Error(MENSAJE_NO_CONFIRMADO);
+      }
+    }
+  } finally {
+    // Una acción que guarda puede haber tocado varias pestañas (una venta
+    // cambia VENTAS, stock de PRODUCTOS, COMISIONES, CXC...), así que se
+    // limpia todo el caché, haya salido bien o no: la próxima lectura vuelve
+    // a pedirse fresca.
+    limpiarCache();
+  }
 }
 
 // list() se guarda en caché (unos minutos, o hasta que algo se guarde desde
@@ -112,4 +142,7 @@ export const api = {
   armarKit: (data) => send("armarKit", undefined, { data }),
   guardarCotizacion: (data) => send("guardarCotizacion", undefined, { data }),
   actualizarCotizacion: (data) => send("actualizarCotizacion", undefined, { data }),
+  eliminarCotizacion: (cotizacion_id) => send("eliminarCotizacion", undefined, { data: { cotizacion_id } }),
+  eliminarCliente: (cliente_id) => send("eliminarCliente", undefined, { data: { cliente_id } }),
+  eliminarProducto: (producto_id) => send("eliminarProducto", undefined, { data: { producto_id } }),
 };

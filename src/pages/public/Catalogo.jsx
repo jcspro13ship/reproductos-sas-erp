@@ -3,6 +3,7 @@ import { api } from "../../lib/api";
 import { fusionarPrecios, resolverListaPublica } from "../../lib/catalogo";
 import { useClienteAuth } from "../../context/ClienteAuthContext";
 import ProductoCard from "../../components/ProductoCard";
+import { compartirCatalogo } from "../../lib/compartir";
 
 export default function Catalogo() {
   const { cliente } = useClienteAuth();
@@ -43,7 +44,19 @@ export default function Catalogo() {
 
   return (
     <div>
-      <h1 style={{ fontSize: 24, marginBottom: 4 }}>Catálogo</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+        <h1 style={{ fontSize: 24, marginBottom: 4 }}>Catálogo</h1>
+        <button
+          type="button"
+          className="boton-secundario boton"
+          onClick={async () => {
+            const aviso = await compartirCatalogo();
+            if (aviso) window.alert(aviso);
+          }}
+        >
+          Compartir catálogo
+        </button>
+      </div>
       {cliente && <p style={{ fontSize: 13, opacity: 0.7, marginBottom: 12 }}>Precios para {cliente.nombre}</p>}
 
       <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>

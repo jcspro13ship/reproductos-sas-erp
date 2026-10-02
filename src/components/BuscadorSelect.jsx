@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { coincide } from "../lib/busqueda";
 
 // Selector con autocompletado propio: filtra las opciones por cualquier parte
 // del texto (no solo el inicio, a diferencia del <datalist> nativo del
@@ -29,8 +30,8 @@ export default function BuscadorSelect({ opciones, value, onChange, placeholder,
     return () => document.removeEventListener("mousedown", alHacerClicFuera);
   }, []);
 
-  const filtro = texto.trim().toLowerCase();
-  const filtradas = filtro ? opciones.filter((o) => o.label.toLowerCase().includes(filtro)) : opciones;
+  const filtro = texto.trim();
+  const filtradas = filtro ? opciones.filter((o) => coincide(o.label, filtro)) : opciones;
   const filtradasVisibles = filtradas.slice(0, 50);
 
   function elegir(opcion) {

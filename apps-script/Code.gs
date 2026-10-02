@@ -41,6 +41,12 @@
 // Reemplaza los datos y TODAS las líneas de una cotización ya creada (borra
 // las líneas viejas y crea las nuevas) — para corregir/completar una
 // cotización existente en vez de crear otra cada vez.
+// POST { action: "eliminarCotizacion", data: { cotizacion_id } } — solo si sigue pendiente; borra también sus líneas.
+// POST { action: "eliminarCliente", data: { cliente_id } } — se niega si tiene ventas, cotizaciones o cartera.
+// POST { action: "eliminarProducto", data: { producto_id } } — se niega si ya tiene historial (ventas, compras,
+//        cotizaciones, kits, movimientos); si no, borra el producto y sus precios.
+// Cualquier POST puede traer request_id: si llega repetido (reintento), se devuelve la respuesta
+// de la primera vez en lugar de ejecutarlo otra vez — ver ejecutarUnaSolaVez().
 // POST { action: "armarKit", data: { kit_producto_id, cantidad, fecha } }
 // Un "kit" es una fila más de PRODUCTOS (con es_kit=true) cuya receta vive en
 // KIT_COMPONENTES (kit_producto_id, producto_id, cantidad por unidad de kit).
@@ -73,6 +79,67 @@ function doGet(e) {
 function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents)
+    if (body.request_id) {
+      return ejecutarUnaSolaVez(body.request_id, function () {
+        return despacharPost(body)
+      })
+    }
+    return despacharPost(body)
+  } catch (err) {
+    return responder({ ok: false, error: String(err) })
+  }
+}
+
+// Evita duplicados cuando la respuesta de Google se pierde en el camino: la app
+// ve un error ("Acción GET no reconocida"...) aunque la acción SÍ se guardó, y
+// al volver a darle "Guardar" se creaba otra copia. Cada acción que guarda
+// algo manda un request_id; si llega otra vez el mismo (un reintento), en vez
+// de ejecutarla de nuevo se devuelve la respuesta de la primera vez.
+function ejecutarUnaSolaVez(requestId, ejecutar) {
+  var cache = CacheService.getScriptCache()
+  var clave = 'req_' + requestId
+  var lock = LockService.getScriptLock()
+  var previo
+  lock.waitLock(10000)
+  try {
+    previo = cache.get(clave)
+    if (previo === null) cache.put(clave, 'PENDIENTE', 600)
+  } finally {
+    lock.releaseLock()
+  }
+
+  if (previo !== null) {
+    // Si la primera vez todavía está corriendo, se espera su resultado.
+    for (var i = 0; i < 25 && previo === 'PENDIENTE'; i++) {
+      Utilities.sleep(1000)
+      previo = cache.get(clave)
+    }
+    if (previo === null || previo === 'PENDIENTE') {
+      return responder({ ok: false, error: 'La operación anterior sigue en proceso. Revisa la lista antes de volver a guardar.' })
+    }
+    return ContentService.createTextOutput(previo).setMimeType(ContentService.MimeType.JSON)
+  }
+
+  try {
+    var salida = ejecutar()
+    var texto = salida.getContent()
+    // Solo se recuerdan las que salieron bien: si falló (ej. el candado estaba
+    // ocupado), un reintento sí debe volver a ejecutarse.
+    if (JSON.parse(texto).ok) {
+      if (texto.length < 90000) cache.put(clave, texto, 600)
+      else cache.put(clave, JSON.stringify({ ok: true, data: { guardado: true } }), 600)
+    } else {
+      cache.remove(clave)
+    }
+    return salida
+  } catch (err) {
+    cache.remove(clave)
+    throw err
+  }
+}
+
+function despacharPost(body) {
+  try {
     var accion = body.action
     var sheetName = body.sheet
 
@@ -129,6 +196,15 @@ function doPost(e) {
     }
     if (accion === 'actualizarCotizacion') {
       return responder(actualizarCotizacion(body.data || {}))
+    }
+    if (accion === 'eliminarCotizacion') {
+      return responder(eliminarCotizacion(body.data || {}))
+    }
+    if (accion === 'eliminarCliente') {
+      return responder(eliminarCliente(body.data || {}))
+    }
+    if (accion === 'eliminarProducto') {
+      return responder(eliminarProducto(body.data || {}))
     }
     return responder({ ok: false, error: 'Acción POST no reconocida: ' + accion })
   } catch (err) {
@@ -438,6 +514,106 @@ function actualizarCotizacion(datos) {
     })
 
     return { ok: true, data: { cotizacion: actualizada, detalles: detalles } }
+  } finally {
+    lock.releaseLock()
+  }
+}
+
+// Borra una cotización que sigue pendiente junto con todas sus líneas. Las ya
+// convertidas a venta no se tocan (la venta queda como respaldo del trámite).
+function eliminarCotizacion(datos) {
+  var lock = LockService.getScriptLock()
+  lock.waitLock(10000)
+  try {
+    var id = datos.cotizacion_id
+    var cotizacion = buscarPorId('COTIZACIONES', id)
+    if (!cotizacion) return { ok: false, error: 'Cotización no encontrada: ' + id }
+    if (cotizacion.estado === 'convertida') {
+      return { ok: false, error: 'Esta cotización ya se convirtió en venta, no se puede eliminar.' }
+    }
+    leerTodo('COTIZACIONES_DETALLE')
+      .filter(function (d) {
+        return String(d.cotizacion_id) === String(id)
+      })
+      .forEach(function (d) {
+        borrarFila('COTIZACIONES_DETALLE', d.id)
+      })
+    borrarFila('COTIZACIONES', id)
+    return { ok: true, data: { eliminado: true } }
+  } finally {
+    lock.releaseLock()
+  }
+}
+
+// Un cliente con ventas, cotizaciones o cartera no se borra: quedarían
+// registros apuntando a un cliente que ya no existe.
+function eliminarCliente(datos) {
+  var lock = LockService.getScriptLock()
+  lock.waitLock(10000)
+  try {
+    var id = datos.cliente_id
+    var cliente = buscarPorId('CLIENTES', id)
+    if (!cliente) return { ok: false, error: 'Cliente no encontrado: ' + id }
+    var enUso = function (hoja) {
+      return leerTodo(hoja).filter(function (f) {
+        return String(f.cliente_id) === String(id)
+      }).length
+    }
+    var ventas = enUso('VENTAS')
+    var cotizaciones = enUso('COTIZACIONES')
+    var cartera = enUso('CXC')
+    if (ventas || cotizaciones || cartera) {
+      var partes = []
+      if (ventas) partes.push(ventas + ' venta(s)')
+      if (cotizaciones) partes.push(cotizaciones + ' cotización(es)')
+      if (cartera) partes.push(cartera + ' cuenta(s) por cobrar')
+      return { ok: false, error: 'No se puede eliminar a "' + cliente.nombre + '": tiene ' + partes.join(', ') + '. Elimina o corrige eso primero.' }
+    }
+    borrarFila('CLIENTES', id)
+    return { ok: true, data: { eliminado: true } }
+  } finally {
+    lock.releaseLock()
+  }
+}
+
+// Un producto con historial (ventas, compras, cotizaciones, kits o movimientos)
+// no se borra — se debe ocultar del catálogo en su lugar. Si no tiene historial
+// (ej. un producto repetido o creado por error), se borra junto con sus precios.
+function eliminarProducto(datos) {
+  var lock = LockService.getScriptLock()
+  lock.waitLock(10000)
+  try {
+    var id = datos.producto_id
+    var producto = buscarPorId('PRODUCTOS', id)
+    if (!producto) return { ok: false, error: 'Producto no encontrado: ' + id }
+    var usos = []
+    var contar = function (hoja, columna, etiqueta) {
+      var n = leerTodo(hoja).filter(function (f) {
+        return String(f[columna]) === String(id)
+      }).length
+      if (n) usos.push(n + ' ' + etiqueta)
+    }
+    contar('VENTAS_DETALLE', 'producto_id', 'venta(s)')
+    contar('COMPRAS_DETALLE', 'producto_id', 'compra(s)')
+    contar('COTIZACIONES_DETALLE', 'producto_id', 'cotización(es)')
+    contar('KIT_COMPONENTES', 'producto_id', 'kit(s) donde es componente')
+    contar('KIT_COMPONENTES', 'kit_producto_id', 'componente(s) como kit')
+    contar('MOVIMIENTOS_INVENTARIO', 'producto_id', 'movimiento(s) de inventario')
+    if (usos.length) {
+      return {
+        ok: false,
+        error: 'No se puede eliminar "' + producto.nombre + '" porque ya tiene ' + usos.join(', ') + '. Si no lo quieres mostrar, ponlo en "No" en Visible en catálogo.',
+      }
+    }
+    leerTodo('PRECIOS_PRODUCTO')
+      .filter(function (f) {
+        return String(f.producto_id) === String(id)
+      })
+      .forEach(function (f) {
+        borrarFila('PRECIOS_PRODUCTO', f.id)
+      })
+    borrarFila('PRODUCTOS', id)
+    return { ok: true, data: { eliminado: true } }
   } finally {
     lock.releaseLock()
   }

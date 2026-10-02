@@ -2,14 +2,22 @@ import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { descargarCSV, filasACSV } from "../lib/csv";
 import FormularioEntidad from "./FormularioEntidad";
+import { coincide } from "../lib/busqueda";
 
-export default function TablaEditable({ sheet, titulo, columnas, campos, onGuardado, permitirCrear = true, buscarEn }) {
+// buscarEn: lista de claves de la fila, o funciones (fila) => texto para buscar
+// en datos calculados (ej. el nombre de un producto que la fila solo guarda
+// como código).
+// eliminar: { onEliminar(fila) => Promise (lanza Error si no se puede),
+// confirmar(fila) => texto del aviso } — si se pasa, cada fila muestra "Eliminar".
+export default function TablaEditable({ sheet, titulo, columnas, campos, onGuardado, permitirCrear = true, buscarEn, eliminar }) {
   const [filas, setFilas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
   const [editando, setEditando] = useState(null); // null cerrado, {} nuevo, {...fila} editar
   const [refreshKey, setRefreshKey] = useState(0);
   const [busqueda, setBusqueda] = useState("");
+  const [eliminandoId, setEliminandoId] = useState(null);
+  const [errorAccion, setErrorAccion] = useState(null);
 
   useEffect(() => {
     let activo = true;
@@ -34,10 +42,30 @@ export default function TablaEditable({ sheet, titulo, columnas, campos, onGuard
     onGuardado?.();
   }
 
-  const filtro = busqueda.trim().toLowerCase();
+  async function eliminarFila(fila) {
+    if (!window.confirm(eliminar.confirmar ? eliminar.confirmar(fila) : "¿Eliminar este registro? No se puede deshacer.")) return;
+    setEliminandoId(fila.id);
+    setErrorAccion(null);
+    try {
+      await eliminar.onEliminar(fila);
+      setRefreshKey((k) => k + 1);
+      onGuardado?.();
+    } catch (e) {
+      setErrorAccion(e.message);
+    } finally {
+      setEliminandoId(null);
+    }
+  }
+
+  const filtro = busqueda.trim();
   const filasFiltradas =
     buscarEn && filtro
-      ? filas.filter((fila) => buscarEn.some((clave) => String(fila[clave] ?? "").toLowerCase().includes(filtro)))
+      ? filas.filter((fila) =>
+          coincide(
+            buscarEn.map((clave) => (typeof clave === "function" ? clave(fila) : fila[clave] ?? "")),
+            filtro
+          )
+        )
       : filas;
 
   return (
@@ -80,6 +108,7 @@ export default function TablaEditable({ sheet, titulo, columnas, campos, onGuard
         />
       )}
 
+      {errorAccion && <p style={{ color: "crimson", marginBottom: 12 }}>{errorAccion}</p>}
       {cargando && <p>Cargando...</p>}
       {error && <p style={{ color: "crimson" }}>{error}</p>}
       {!cargando && !error && filas.length === 0 && <p>No hay registros en {sheet} todavía.</p>}
@@ -108,10 +137,19 @@ export default function TablaEditable({ sheet, titulo, columnas, campos, onGuard
                         : fila[c.key]}
                   </td>
                 ))}
-                <td>
+                <td style={{ display: "flex", gap: 8 }}>
                   <button className="boton-secundario boton" onClick={() => setEditando(fila)}>
                     Editar
                   </button>
+                  {eliminar && (
+                    <button
+                      className="boton-secundario boton"
+                      disabled={eliminandoId === fila.id}
+                      onClick={() => eliminarFila(fila)}
+                    >
+                      {eliminandoId === fila.id ? "Eliminando..." : "Eliminar"}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

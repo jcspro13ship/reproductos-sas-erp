@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../lib/api";
+import BuscadorSelect from "./BuscadorSelect";
 
 export default function FormularioEntidad({ sheet, campos, valores, onGuardado, onCancelar }) {
   const esEdicion = Boolean(valores?.id);
@@ -30,6 +31,8 @@ export default function FormularioEntidad({ sheet, campos, valores, onGuardado, 
     setGuardando(true);
     setError(null);
     try {
+      const faltante = campos.find((c) => c.tipo === "select" && c.requerido && !datos[c.key]);
+      if (faltante) throw new Error(`Elige una opción de la lista en "${faltante.label}".`);
       const payload = {};
       campos.forEach((c) => {
         const valor = datos[c.key];
@@ -70,7 +73,14 @@ export default function FormularioEntidad({ sheet, campos, valores, onGuardado, 
         <label key={c.key}>
           {c.label}
           {c.tipo === "porcentaje" ? " (%)" : ""}
-          {c.tipo === "select" ? (
+          {c.tipo === "select" && c.opciones.length > 8 ? (
+            <BuscadorSelect
+              opciones={c.opciones}
+              value={datos[c.key]}
+              onChange={(valor) => set(c.key, valor)}
+              placeholder="Escribe para buscar..."
+            />
+          ) : c.tipo === "select" ? (
             <select value={datos[c.key]} onChange={(e) => set(c.key, e.target.value)} required={c.requerido}>
               <option value="">Selecciona...</option>
               {c.opciones.map((o) => (

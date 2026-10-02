@@ -15,6 +15,11 @@ export default function Clientes() {
     <TablaEditable
       titulo="Clientes"
       sheet="CLIENTES"
+      buscarEn={["id", "nombre", "contacto"]}
+      eliminar={{
+        onEliminar: (fila) => api.eliminarCliente(fila.id),
+        confirmar: (fila) => `¿Eliminar al cliente "${fila.nombre}"? Solo se puede si no tiene ventas, cotizaciones ni cartera. No se puede deshacer.`,
+      }}
       columnas={[
         { key: "id", label: "ID" },
         { key: "nombre", label: "Nombre" },

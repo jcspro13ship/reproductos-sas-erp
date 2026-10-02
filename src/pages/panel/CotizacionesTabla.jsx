@@ -12,6 +12,7 @@ export default function CotizacionesTabla({ onConvertida, onVerImprimir, onEdita
   const [tasasCambio, setTasasCambio] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [convirtiendoId, setConvirtiendoId] = useState(null);
+  const [eliminandoId, setEliminandoId] = useState(null);
   const [error, setError] = useState(null);
 
   function cargar() {
@@ -66,6 +67,20 @@ export default function CotizacionesTabla({ onConvertida, onVerImprimir, onEdita
     }
   }
 
+  async function eliminar(cotizacion) {
+    if (!window.confirm(`¿Eliminar la cotización ${cotizacion.id}? Se borra con todos sus productos y no se puede deshacer.`)) return;
+    setEliminandoId(cotizacion.id);
+    setError(null);
+    try {
+      await api.eliminarCotizacion(cotizacion.id);
+      cargar();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setEliminandoId(null);
+    }
+  }
+
   function editar(cotizacion) {
     const items = detalle
       .filter((d) => d.cotizacion_id === cotizacion.id)
@@ -97,7 +112,7 @@ export default function CotizacionesTabla({ onConvertida, onVerImprimir, onEdita
       {cargando && <p>Cargando...</p>}
       {error && <p style={{ color: "crimson" }}>{error}</p>}
       {!cargando && !error && cotizaciones.length === 0 && <p>No hay cotizaciones todavía.</p>}
-      {!cargando && !error && cotizaciones.length > 0 && (
+      {!cargando && cotizaciones.length > 0 && (
         <table>
           <thead>
             <tr>
@@ -123,6 +138,13 @@ export default function CotizacionesTabla({ onConvertida, onVerImprimir, onEdita
                     <>
                       <button className="boton-secundario boton" onClick={() => editar(c)}>
                         Editar
+                      </button>
+                      <button
+                        className="boton-secundario boton"
+                        disabled={eliminandoId === c.id}
+                        onClick={() => eliminar(c)}
+                      >
+                        {eliminandoId === c.id ? "Eliminando..." : "Eliminar"}
                       </button>
                       <button
                         className="boton-secundario boton"
