@@ -42,7 +42,7 @@ export default function ProductoDetalle() {
   if (error) return <p style={{ color: "crimson" }}>{error}</p>;
   if (!producto) return <p>Producto no encontrado.</p>;
 
-  const imagenUrl = resolverImagenDrive(producto.imagen);
+  const imagenUrl = resolverImagenDrive(producto.imagen, 1200);
 
   function handleAgregar() {
     agregar(producto, cantidad);

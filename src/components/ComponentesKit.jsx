@@ -4,7 +4,7 @@ import BuscadorSelect from "./BuscadorSelect";
 // Igual de simple que FilasItems, pero sin el campo de monto (un componente
 // de kit no tiene precio propio, solo cuánto lleva).
 export default function ComponentesKit({ componentes, productos, onChange }) {
-  const opciones = productos.map((p) => ({ value: p.id, label: p.nombre }));
+  const opciones = productos.map((p) => ({ value: p.id, label: `${p.id} · ${p.nombre} — stock ${Number(p.stock_actual) || 0}` }));
 
   function actualizar(i, campo, valor) {
     onChange(componentes.map((c, idx) => (idx === i ? { ...c, [campo]: valor } : c)));

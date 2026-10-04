@@ -1,7 +1,12 @@
 import BuscadorSelect from "./BuscadorSelect";
 
 export default function FilasItems({ items, productos, campoMonto, etiquetaMonto, onChange, onProductoChange }) {
-  const opcionesProducto = productos.map((p) => ({ value: p.id, label: p.nombre }));
+  // Con productos repetidos el nombre solo no dice cuál es cuál: se muestra el
+  // código y el stock, y la persona identifica el que tiene inventario.
+  const opcionesProducto = productos.map((p) => {
+    const stock = Number(p.stock_actual) || 0;
+    return { value: p.id, label: `${p.id} · ${p.nombre} — ${stock > 0 ? `stock ${stock}` : "sin stock"}` };
+  });
 
   function actualizar(i, campo, valor) {
     onChange(items.map((it, idx) => (idx === i ? { ...it, [campo]: valor } : it)));

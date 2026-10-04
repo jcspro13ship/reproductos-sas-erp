@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reproduuctos SAS</title>
+    <meta property="og:title" content="Reproduuctos SAS — Catálogo" />
+    <meta property="og:image" content="https://jcspro13ship.github.io/reproductos-sas-erp/og-reproduuctos.png" />
+    <script>
+      // Respaldo para enlaces de producto (/p/ID/) cuyo producto es posterior
+      // a la última publicación: no existe su página con vista previa, pero la
+      // persona igual llega a la ficha del producto.
+      (function () {
+        var m = window.location.pathname.match(/^(.*\/)p\/([^/]+)\/?$/);
+        if (m) window.location.replace(m[1] + "#/producto/" + m[2]);
+      })();
+    </script>
+  </head>
+  <body>
+    <p><a href="./">Ir al catálogo de Reproduuctos SAS</a></p>
+  </body>
+</html>

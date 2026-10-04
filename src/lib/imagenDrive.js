@@ -3,7 +3,7 @@
 // sirve la imagen directamente para usar en <img src>. Si la URL no es un
 // link de Drive (ej. Imgur), se devuelve tal cual. Se usa tanto para el logo
 // de la empresa como para las fotos de producto.
-export function resolverImagenDrive(url, tamano = 400) {
+export function resolverImagenDrive(url, tamano = 600) {
   if (!url) return null;
   const match = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
   if (!match) return url;
